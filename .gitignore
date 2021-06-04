@@ -1,0 +1,8 @@
+# Ignore VS Code config files
+.vscode/
+
+# Ignore backup menuconfig file
+/sdkconfig.old
+
+# Ignore build files
+build/
