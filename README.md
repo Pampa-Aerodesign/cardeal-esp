@@ -4,6 +4,8 @@
 
 This is the repository for Pampa Aerodesign's first continuously developed embedded system, cardeal-esp.
 
+We're currently using esp-idf version v4.2.
+
 ## Cloning the repo
 
 This repo contains some git submodules, so you need extra steps when cloning the repo to local:
