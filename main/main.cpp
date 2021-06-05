@@ -1,10 +1,6 @@
-/* Cardeal Embedded System
+/* Cardeal ESP
 
    This is an embedded system developed for Pampa Aerodesign's aircraft.
-
-   People who worked on this project:
-   Lucca Silva
-   ...
 
    Unless required by applicable law or agreed to in writing, this
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
@@ -53,7 +49,7 @@ void taskAccel(void *params) {
         mpud::raw_axes_t accelRaw; // holds x, y, z axes as int16
         MPU.acceleration(&accelRaw); // fetch raw data from the registers
         ESP_LOGI("mpu", "accel-raw: %+d %+d %+d\n", accelRaw.x, accelRaw.y, accelRaw.z);
-        
+
         /* Converting raw data to value in [g] */
         mpud::float_axes_t accelG = mpud::accelGravity(accelRaw, ACCELEROMETER_SCALE); // raw data to gravity
         ESP_LOGI("mpu", "accel: %+.2f %+.2f %+.2f\n", accelG.x, accelG.y, accelG.z);
