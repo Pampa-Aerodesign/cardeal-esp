@@ -22,6 +22,6 @@ The cardeal-esp project is configured with a code formatting tool called clang-f
 
 This repo is configured with a GitHub action that automatically formats code in the master branch when a commit or a pull request is made to such branch **(currently disabled)**. It ignores files in the `components` folder to avoid changing those source files.
 
-The `.clang-format` file in the root directory contains the configuration for the code style used.
+The `.clang-format` file in the root directory contains the code style configuration used.
 
 To prevent a section of code from being formatted, one can use `// clang-format off` and `// clang-format on` around it.
