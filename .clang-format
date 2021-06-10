@@ -1,0 +1,9 @@
+BasedOnStyle: Google
+---
+Language: Cpp
+# Indent w/ the default size of the tab key
+IndentWidth: 4
+# Automatically break lines in long comments
+ReflowComments: true
+# Align comments trailing code in consecutive lines
+AlignTrailingComments: true
