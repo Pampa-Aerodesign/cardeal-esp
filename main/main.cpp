@@ -77,8 +77,7 @@ void startSDCard() {
                                 .quadhd_io_num = -1,
                                 .max_transfer_sz = 4000,
                                 .flags = 0,
-                                .intr_flags = 0
-    };
+                                .intr_flags = 0};
 
     ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, 1);
     if (ret != ESP_OK) {
@@ -86,19 +85,25 @@ void startSDCard() {
         return;
     }
 
-    // This initializes the slot without card detect (CD -> slot_config.gpio_cd) and write protect (WP -> slot_config.gpio_wp) signals
+    // This initializes the slot without card detect (CD -> slot_config.gpio_cd)
+    // and write protect (WP -> slot_config.gpio_wp) signals
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = PIN_NUM_CS; // CS pin
+    slot_config.gpio_cs = PIN_NUM_CS;  // CS pin
     slot_config.host_id = (spi_host_device_t)host.slot;
 
-    ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
+    ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config,
+                                  &mount_config, &card);
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
-            ESP_LOGE("SD", "Failed to mount filesystem. "
-                     "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+            ESP_LOGE("SD",
+                     "Failed to mount filesystem. "
+                     "If you want the card to be formatted, set the "
+                     "EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
         } else {
-            ESP_LOGE("SD", "Failed to initialize the card (%s). "
-                     "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+            ESP_LOGE("SD",
+                     "Failed to initialize the card (%s). "
+                     "Make sure SD card lines have pull-up resistors in place.",
+                     esp_err_to_name(ret));
         }
         return;
     }
@@ -108,7 +113,7 @@ void startSDCard() {
 }
 
 void openfileSDCard(FILE *&f, const char *file_name) {
-    char file_dir[30] = MOUNT_POINT"/";
+    char file_dir[30] = MOUNT_POINT "/";
     strcat(file_dir, file_name);
     ESP_LOGI("SD", "Opening file %s", file_dir);
     f = fopen(file_dir, "a");
@@ -146,8 +151,8 @@ void taskAccel(void *params) {
 
         /* Writes values to SD Card */
         openfileSDCard(f, "accel.txt");
-        fprintf(f, "%+.5f,%+.5f,%+.5f,%ld\n", accelG.x, accelG.y,
-                 accelG.z, time_us);
+        fprintf(f, "%+.5f,%+.5f,%+.5f,%ld\n", accelG.x, accelG.y, accelG.z,
+                time_us);
         closefileSDCard(f);
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -165,5 +170,5 @@ extern "C" void app_main(void) {
     fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
     closefileSDCard(f);
 
-    xTaskCreate(&taskAccel, "read accelerometer data", 8*1024, NULL, 2, NULL);
+    xTaskCreate(&taskAccel, "read accelerometer data", 8 * 1024, NULL, 2, NULL);
 }
