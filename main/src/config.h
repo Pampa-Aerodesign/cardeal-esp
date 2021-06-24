@@ -26,4 +26,8 @@ static constexpr gpio_num_t PIN_NUM_MOSI = GPIO_NUM_15;
 static constexpr gpio_num_t PIN_NUM_CLK  = GPIO_NUM_14;
 static constexpr gpio_num_t PIN_NUM_CS   = GPIO_NUM_13;
 
+// ADC1 (for voltage measurement)
+static const adc_atten_t atten = ADC_ATTEN_DB_11;
+static const adc_unit_t unit = ADC_UNIT_1;
+
 #endif  // CARDEAL_CONFIG_H_

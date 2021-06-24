@@ -26,6 +26,10 @@
 
 // Current Sensor (INA219)
 #include "ina219.h"
+
+// Voltage Measurement (ADC)
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
 /* clang-format on */
 
 void startSDCard() {
@@ -133,6 +137,25 @@ void taskCurrent(void * params) {
     }
 }
 
+void taskVoltage(void * params) {
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC1_CHANNEL_0, atten); // ADC1_0 is GPIO 36
+    esp_adc_cal_characteristics_t *adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+        printf("eFuse Vref");
+    } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
+        printf("Two Point");
+    } else {
+        printf("Default");
+    }
+    while (true) {
+        int val = adc1_get_raw(ADC1_CHANNEL_0);
+        printf("value is %d, voltage is %dmV\n", val, esp_adc_cal_raw_to_voltage(val, adc_chars));
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
 extern "C" void app_main(void) {
     
     /*startSDCard();
@@ -142,7 +165,8 @@ extern "C" void app_main(void) {
     fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
     closefileSDCard(f);*/
 
-    ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, needed for esp-idf-lib libraries
+    ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, dependency for esp-idf-lib libraries
 
     xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
+    xTaskCreate(&taskVoltage, "read voltage measurement", 1024, NULL, 2, NULL);
 }
