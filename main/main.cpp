@@ -28,8 +28,8 @@
 #include "ina219.h"
 
 // Voltage Measurement (ADC)
+#include "src/VoltageSensor.hpp"
 #include "driver/adc.h"
-#include "esp_adc_cal.h"
 /* clang-format on */
 
 void startSDCard() {
@@ -138,31 +138,17 @@ void taskCurrent(void * params) {
 }
 
 void taskVoltage(void * params) {
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(ADC1_CHANNEL_0, atten); // ADC1_0 is GPIO 36
-    esp_adc_cal_characteristics_t *adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
-    if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
-        printf("eFuse Vref");
-    } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
-        printf("Two Point");
-    } else {
-        printf("Default");
-    }
+    VoltageSensor AileronServo;
+
+    AileronServo.setup(ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1.0, 0.470);
+    AileronServo.calibLog();
+
     while (true) {
-        int val = adc1_get_raw(ADC1_CHANNEL_0);
-        printf("value is %d, voltage is %dmV\n", val, esp_adc_cal_raw_to_voltage(val, adc_chars));
+        int value = AileronServo.read_mV(50);
+        printf("voltage is %dmV\n", value);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
-    /* IDEIA:
-    criar classe 'VoltageSensor'
-    um objeto poderia ser, por exemplo, 'AileronServo'
-    criar funções: AileronServo.setup(ADC1_CHANNEL_0, ADC_WIDTH_BIT_12)
-                   AileronServo.calib(ADC_UNIT_1, ADC_ATTEN_DB_11)
-                   AileronServo.read_mV(number_of_samples) -> retorna o valor em mV
-                   AileronServo.readDivider_mV(number_of_samples, R1, R2) -> retorna o valor em mV, escalado pelo voltage divider utilizado
-    */
 }
 
 extern "C" void app_main(void) {
@@ -177,5 +163,5 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, dependency for esp-idf-lib libraries
 
     xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
-    xTaskCreate(&taskVoltage, "read voltage measurement", 1024, NULL, 2, NULL);
+    xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
 }
