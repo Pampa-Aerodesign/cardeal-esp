@@ -8,7 +8,7 @@ We're currently using esp-idf version v4.2.
 
 ## Cloning the repo
 
-This repo contains some git submodules, so you need extra steps when cloning the repo to local:
+This repo contains some git submodules, so you'll need extra steps when cloning the repo to local:
 
 1. git clone https://github.com/Pampa-Aerodesign/cardeal-esp.git
 2. git submodule init
