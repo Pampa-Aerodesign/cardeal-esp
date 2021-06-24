@@ -154,6 +154,15 @@ void taskVoltage(void * params) {
         printf("value is %d, voltage is %dmV\n", val, esp_adc_cal_raw_to_voltage(val, adc_chars));
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+
+    /* IDEIA:
+    criar classe 'VoltageSensor'
+    um objeto poderia ser, por exemplo, 'AileronServo'
+    criar funções: AileronServo.setup(ADC1_CHANNEL_0, ADC_WIDTH_BIT_12)
+                   AileronServo.calib(ADC_UNIT_1, ADC_ATTEN_DB_11)
+                   AileronServo.read_mV(number_of_samples) -> retorna o valor em mV
+                   AileronServo.readDivider_mV(number_of_samples, R1, R2) -> retorna o valor em mV, escalado pelo voltage divider utilizado
+    */
 }
 
 extern "C" void app_main(void) {
