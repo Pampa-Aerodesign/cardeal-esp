@@ -18,7 +18,7 @@ Git submodules are basically repositories embedded inside another repository. In
 
 ## Code formatting
 
-The cardeal-esp project is configured with a code formatting tool called clang-format. It is avaliable standalone or with the [C/C++ extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) in Visual Studio Code.
+The cardeal-esp project uses a code formatting tool called clang-format. It is avaliable standalone or with the [C/C++ extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) in Visual Studio Code.
 
 This repo is configured with a GitHub action that automatically formats code in the master branch when a commit or a pull request is made to such branch. It ignores files in the `components` folder to avoid changing those source files.
 
