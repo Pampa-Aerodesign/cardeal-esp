@@ -25,6 +25,8 @@ private:
         |
         o GND
     */
+    
+    /* To minimize noise, users may connect a 0.1 µF capacitor to the ADC input pad in use. (Espressif Docs) */
 
 public:
     void setup(adc1_channel_t ADC1_CHANNEL_num, adc_atten_t ADC_ATTEN_DB_num, float R1 = 0, float R2 = 0);
