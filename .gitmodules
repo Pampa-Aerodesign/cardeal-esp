@@ -4,3 +4,6 @@
 [submodule "components/MPUdriver"]
 	path = components/MPUdriver
 	url = https://github.com/natanaeljr/esp32-MPU-driver
+[submodule "components/esp32-lora-library"]
+	path = components/esp32-lora-library
+	url = https://github.com/luccareinehr/esp32-lora-library.git
