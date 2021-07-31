@@ -7,3 +7,6 @@
 [submodule "components/esp32-lora-library"]
 	path = components/esp32-lora-library
 	url = https://github.com/luccareinehr/esp32-lora-library.git
+[submodule "components/lora"]
+	path = components/lora
+	url = https://github.com/luccareinehr/lora.git
