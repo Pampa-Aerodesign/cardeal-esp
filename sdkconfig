@@ -121,39 +121,6 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# I2Cbus
-#
-CONFIG_I2CBUS_LOG_ERRORS=y
-# CONFIG_I2CBUS_LOG_READWRITES is not set
-# end of I2Cbus
-
-#
-# MPU driver
-#
-# CONFIG_MPU6000 is not set
-# CONFIG_MPU6050 is not set
-# CONFIG_MPU6500 is not set
-# CONFIG_MPU6555 is not set
-# CONFIG_MPU9150 is not set
-# CONFIG_MPU9250 is not set
-CONFIG_MPU9255=y
-CONFIG_MPU_CHIP_MODEL="MPU9255"
-CONFIG_MPU_AK8963=y
-CONFIG_MPU_AK89xx=y
-CONFIG_MPU_I2C=y
-# CONFIG_MPU_SPI is not set
-CONFIG_MPU_COMM_PROTOCOL="I2C"
-CONFIG_MPU_LOG_LEVEL_DEFAULT=y
-# CONFIG_MPU_LOG_LEVEL_NONE is not set
-# CONFIG_MPU_LOG_LEVEL_ERROR is not set
-# CONFIG_MPU_LOG_LEVEL_WARN is not set
-# CONFIG_MPU_LOG_LEVEL_INFO is not set
-CONFIG_MPU_LOG_LEVEL=3
-# CONFIG_MPU_ENABLE_DMP is not set
-CONFIG_MPU_LOG_ERROR_TRACES=y
-# end of MPU driver
-
-#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y
@@ -1043,21 +1010,21 @@ CONFIG_WPA_MBEDTLS_CRYPTO=y
 # end of Supplicant
 
 #
-# I2Cbus
-#
-# end of I2Cbus
-
-#
-# MPU driver
-#
-# end of MPU driver
-
-#
 # I2C
 #
 CONFIG_I2CDEV_TIMEOUT=1000
 # CONFIG_I2CDEV_NOLOCK is not set
 # end of I2C
+
+#
+# LoRa Configuration
+#
+CONFIG_CS_GPIO=15
+CONFIG_RST_GPIO=32
+CONFIG_MISO_GPIO=13
+CONFIG_MOSI_GPIO=12
+CONFIG_SCK_GPIO=14
+# end of LoRa Configuration
 # end of Component config
 
 #
