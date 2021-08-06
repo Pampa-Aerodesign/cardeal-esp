@@ -31,11 +31,14 @@
 #include "src/VoltageSensor.hpp"
 #include "driver/adc.h"
 
+// Temperature Sensor (BMP280)
+#include "bmp280.h"
+
 // LoRa communication via SX1276 chips
 #include "lora.h"
 /* clang-format on */
 
-void startSDCard() {
+/*void startSDCard() {
     esp_err_t ret;
 
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
@@ -94,9 +97,9 @@ void startSDCard() {
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
-}
+}*/
 
-void openfileSDCard(FILE *&f, const char *file_name) {
+/*void openfileSDCard(FILE *&f, const char *file_name) {
     char file_dir[30] = MOUNT_POINT "/";
     strcat(file_dir, file_name);
     ESP_LOGI("SD", "Opening file %s", file_dir);
@@ -105,17 +108,17 @@ void openfileSDCard(FILE *&f, const char *file_name) {
         ESP_LOGE("SD", "Failed to open file for writing");
         return;
     }
-}
+}*/
 
 /*void writeinSDCard(FILE *&f, char * string) {
     fprintf(f, string);
     ESP_LOGI("SD", "File written");
 }*/
 
-void closefileSDCard(FILE *&f) {
+/*void closefileSDCard(FILE *&f) {
     fclose(f);
     ESP_LOGI("SD", "File closed");
-}
+}*/
 
 void taskCurrent(void *params) {
     ina219_t sensor;  // device struct
@@ -174,18 +177,70 @@ void taskLoRa_tx(void *params) {
     }
 }
 
+void taskBMP280(void * pvParameters) {
+	// setup
+	ESP_LOGI("BMP280", "Setting up BMP280");
+	bmp280_params_t params;
+	bmp280_init_default_params(&params);
+	bmp280_t dev;
+	memset(&dev, 0, sizeof(bmp280_t));
+
+	// initializing
+	ESP_LOGI("BMP280", "Initializing BMP280");
+	ESP_ERROR_CHECK(bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, 0, SDA_GPIO, SCL_GPIO));
+
+	// attempt initialization 5 times
+	int attempt = 1;
+	do {
+		ESP_LOGE("BMP280", "Failed to initialize (attempt %d/5)", attempt);
+		attempt++;
+		vTaskDelay(5000 / portTICK_PERIOD_MS);
+	} while(bmp280_init(&dev, &params) != ESP_OK && attempt < 5);
+
+	// suspend task after 5 attempts
+	if(attempt >= 5){
+		ESP_LOGE("BMP280", "Failed to initialize, suspending task");
+		vTaskSuspend(NULL);
+	}
+
+	bool bme280p = dev.id == BME280_CHIP_ID;
+	ESP_LOGI("BMP280", "Found %s", bme280p ? "BME280" : "BMP280");
+
+	float pressure, temperature, humidity;
+
+	// loop
+	ESP_LOGI("BMP280", "Starting the loop");
+	while (1){
+		// reading temp, pressure and humidity (if available)
+		if(bmp280_read_float(&dev, &temperature, &pressure, &humidity) != ESP_OK){
+			printf("Temperature/pressure reading failed\n");
+			continue;
+		}
+
+		// printing readings
+		printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
+		if (bme280p)	// print humidity if available
+			printf(", Humidity: %.2f\n", humidity);
+		else
+			printf("\n");
+		
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
+}
+
 extern "C" void app_main(void) {
-    /*startSDCard();
-    FILE *f;
-    openfileSDCard(f, "accel.txt");
-    fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
-    closefileSDCard(f);*/
+  /*startSDCard();
+  FILE *f;
+  openfileSDCard(f, "accel.txt");
+  fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
+  closefileSDCard(f);*/
 
-    ESP_ERROR_CHECK(i2cdev_init());  // start i2cdev library, dependency for
-                                     // esp-idf-lib libraries
+	// start i2cdev library, dependency for esp-idf-lib libraries
+	ESP_ERROR_CHECK(i2cdev_init());
 
-    // xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8,
-    // NULL, 2, NULL); xTaskCreate(&taskVoltage, "read voltage measurement",
-    // configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
-    xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
+	// Tasks
+	xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
+	xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
+	xTaskCreate(&taskBMP280, "read bmp280 pressure temp", configMINIMAL_STACK_SIZE*8, NULL, 3, NULL);
+  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
 }
