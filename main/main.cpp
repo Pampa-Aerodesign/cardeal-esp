@@ -109,7 +109,7 @@ void closefileSDCard(FILE *&f) {
     fclose(f);
     ESP_LOGI("SD", "File closed");
 }
- 
+
 void taskCurrent(void * params) {
     ina219_t sensor; // device struct
     memset(&sensor, 0, sizeof(ina219_t));
@@ -130,7 +130,6 @@ void taskCurrent(void * params) {
         printf("Current: %.04f mA\n", current * 1000);
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
-    }
 }
 
 extern "C" void app_main(void) {

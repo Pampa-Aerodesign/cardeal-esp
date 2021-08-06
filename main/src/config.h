@@ -10,7 +10,7 @@
 
 // SD Card
 #define MOUNT_POINT "/sdcard"
-#define MAX_FREQ_SPI_SDCARD 10000 // in kHz
+#define MAX_FREQ_SPI_SDCARD 10000  // in kHz
 
 /* Pinouts */
 
@@ -23,7 +23,7 @@ static constexpr gpio_num_t SCL_GPIO = GPIO_NUM_22;
 // SPI (SD Card)
 static constexpr gpio_num_t PIN_NUM_MISO = GPIO_NUM_2;
 static constexpr gpio_num_t PIN_NUM_MOSI = GPIO_NUM_15;
-static constexpr gpio_num_t PIN_NUM_CLK  = GPIO_NUM_14;
-static constexpr gpio_num_t PIN_NUM_CS   = GPIO_NUM_13;
+static constexpr gpio_num_t PIN_NUM_CLK = GPIO_NUM_14;
+static constexpr gpio_num_t PIN_NUM_CS = GPIO_NUM_13;
 
 #endif  // CARDEAL_CONFIG_H_
