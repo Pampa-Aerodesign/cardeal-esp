@@ -1051,6 +1051,13 @@ CONFIG_WPA_MBEDTLS_CRYPTO=y
 # MPU driver
 #
 # end of MPU driver
+
+#
+# I2C
+#
+CONFIG_I2CDEV_TIMEOUT=1000
+# CONFIG_I2CDEV_NOLOCK is not set
+# end of I2C
 # end of Component config
 
 #

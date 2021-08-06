@@ -4,16 +4,9 @@
 #ifndef CARDEAL_CONFIG_H_
 #define CARDEAL_CONFIG_H_
 
-#include "MPU.hpp"
-#include "mpu/types.hpp"
+#include "ina219.h"
 
 /* Settings */
-
-// IMU
-static constexpr uint32_t CLOCK_SPEED = 200000;   // range from 100 kHz ~ 400kHz
-static constexpr uint16_t MPU_SAMPLE_RATE = 200;  // range from 4 Hz ~ 1000 Hz
-static constexpr mpud::accel_fs_t ACCELEROMETER_SCALE =
-    mpud::ACCEL_FS_4G;  // +- 2g, 4g, 8g or 16g
 
 // SD Card
 #define MOUNT_POINT "/sdcard"
@@ -21,9 +14,11 @@ static constexpr mpud::accel_fs_t ACCELEROMETER_SCALE =
 
 /* Pinouts */
 
-// I2Cbus lib (IMU dependency)
-static constexpr gpio_num_t SDA = GPIO_NUM_21;
-static constexpr gpio_num_t SCL = GPIO_NUM_22;
+// I2C port 0
+static constexpr gpio_num_t SDA_GPIO = GPIO_NUM_21;
+static constexpr gpio_num_t SCL_GPIO = GPIO_NUM_22;
+#define I2C_PORT 0
+#define I2C_ADDR INA219_ADDR_GND_GND // A1 A0
 
 // SPI (SD Card)
 static constexpr gpio_num_t PIN_NUM_MISO = GPIO_NUM_2;

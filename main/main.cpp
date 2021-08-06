@@ -9,6 +9,7 @@
 
 /* clang-format off */
 #include <stdio.h>
+#include <string.h>
 
 #include "src/config.h"
 
@@ -17,39 +18,15 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-// IMU
-#include "I2Cbus.hpp"
-#include "MPU.hpp"
-#include "mpu/math.hpp"
-#include "mpu/types.hpp"
-
 // SD Card
-#include <string.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
+
+// Current Sensor (INA219)
+#include "ina219.h"
 /* clang-format on */
-
-MPU_t MPU;  // MPU object
-
-void startMPU(MPU_t *MPU) {
-    MPU->setBus(i2c0);  // sets MPU bus to i2c0
-    MPU->setAddr(
-        mpud::MPU_I2CADDRESS_AD0_LOW);  // sets MPU i2c slave address to 0x68
-
-    // Tries to connect to the MPU repeatedly
-    while (esp_err_t err = MPU->testConnection()) {
-        ESP_LOGE("mpu", "Failed to connect to the MPU, error=%#X", err);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-
-    MPU->initialize();  // initializes chip
-    MPU->setSampleRate(
-        MPU_SAMPLE_RATE);  // update rate of sensor register (not the esp!)
-    MPU->setAccelFullScale(ACCELEROMETER_SCALE);
-    // MPU.setDigitalLowPassFilter(mpud::DLPF_42HZ)
-}
 
 void startSDCard() {
     esp_err_t ret;
@@ -133,42 +110,38 @@ void closefileSDCard(FILE *&f) {
     ESP_LOGI("SD", "File closed");
 }
 
-void taskAccel(void *params) {
-    FILE *f;
-    while (true) {
-        /* Acquiring raw acceleratioon data */
-        mpud::raw_axes_t accelRaw;    // holds x, y, z axes as int16
-        MPU.acceleration(&accelRaw);  // fetch raw data from the registers
-        long time_us = (long)esp_timer_get_time();
-        ESP_LOGI("mpu", "accel-raw: %+d %+d %+d\n", accelRaw.x, accelRaw.y,
-                 accelRaw.z);
+void taskCurrent(void * params) {
+    ina219_t sensor; // device struct
+    memset(&sensor, 0, sizeof(ina219_t));
 
-        /* Converting raw data to value in [g] */
-        mpud::float_axes_t accelG = mpud::accelGravity(
-            accelRaw, ACCELEROMETER_SCALE);  // raw data to gravity
-        ESP_LOGI("mpu", "accel: %+.2f %+.2f %+.2f\n", accelG.x, accelG.y,
-                 accelG.z);
+    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO, SCL_GPIO)); // if fails, aborts execution
+    ESP_LOGI("INA219", "Initializing INA219");
+    ESP_ERROR_CHECK(ina219_init(&sensor));
 
-        /* Writes values to SD Card */
-        openfileSDCard(f, "accel.txt");
-        fprintf(f, "%+.5f,%+.5f,%+.5f,%ld\n", accelG.x, accelG.y, accelG.z,
-                time_us);
-        closefileSDCard(f);
+    ESP_LOGI("INA219", "Configuring INA219");
+    ESP_ERROR_CHECK(ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
+            INA219_RES_12BIT_1S, INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
+    float current;
+    
+    ESP_LOGI("INA219", "Starting the loop");
+    while (1) {
+        ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
+        printf("Current: %.04f mA\n", current * 1000);
+
+        vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
 extern "C" void app_main(void) {
-    // Initialize I2C on port 0 using I2Cbus interface
-    i2c0.begin(SDA, SCL, CLOCK_SPEED);
-    startMPU(&MPU);
-    startSDCard();
+    
+    /*startSDCard();
 
     FILE *f;
     openfileSDCard(f, "accel.txt");
     fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
-    closefileSDCard(f);
+    closefileSDCard(f);*/
 
-    xTaskCreate(&taskAccel, "read accelerometer data", 8 * 1024, NULL, 2, NULL);
+    ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, needed for esp-idf-lib libraries
+
+    xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
 }
