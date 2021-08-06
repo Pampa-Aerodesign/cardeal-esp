@@ -29,4 +29,8 @@ static constexpr gpio_num_t PIN_NUM_CS = GPIO_NUM_13;
 // ADC1 (for voltage measurement)
 #define DEFAULT_VREF 1100 // nominal value, can be measured with adc_vref_to_gpio()
 
+// LoRa pins (configurable via 'idf.py menuconfig')
+// 
+// default: CS=15, RST=32, MISO=13, MOSI=12, SCK=14
+
 #endif  // CARDEAL_CONFIG_H_
