@@ -18,7 +18,7 @@
 static constexpr gpio_num_t SDA_GPIO = GPIO_NUM_21;
 static constexpr gpio_num_t SCL_GPIO = GPIO_NUM_22;
 #define I2C_PORT 0
-#define I2C_ADDR INA219_ADDR_GND_GND // A1 A0
+#define I2C_ADDR INA219_ADDR_GND_GND  // A1 A0
 
 // SPI (SD Card)
 static constexpr gpio_num_t PIN_NUM_MISO = GPIO_NUM_2;

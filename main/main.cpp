@@ -110,38 +110,41 @@ void closefileSDCard(FILE *&f) {
     ESP_LOGI("SD", "File closed");
 }
 
-void taskCurrent(void * params) {
-    ina219_t sensor; // device struct
+void taskCurrent(void *params) {
+    ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO, SCL_GPIO)); // if fails, aborts execution
+    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO,
+                                     SCL_GPIO));  // if fails, aborts execution
     ESP_LOGI("INA219", "Initializing INA219");
     ESP_ERROR_CHECK(ina219_init(&sensor));
 
     ESP_LOGI("INA219", "Configuring INA219");
-    ESP_ERROR_CHECK(ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
-            INA219_RES_12BIT_1S, INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
+    ESP_ERROR_CHECK(ina219_configure(
+        &sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125, INA219_RES_12BIT_1S,
+        INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
 
     float current;
-    
+
     ESP_LOGI("INA219", "Starting the loop");
     while (1) {
         ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
         printf("Current: %.04f mA\n", current * 1000);
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
-}
+    }
 
-extern "C" void app_main(void) {
-    
-    /*startSDCard();
+    extern "C" void app_main(void) {
+        /*startSDCard();
 
-    FILE *f;
-    openfileSDCard(f, "accel.txt");
-    fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
-    closefileSDCard(f);*/
+        FILE *f;
+        openfileSDCard(f, "accel.txt");
+        fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
+        closefileSDCard(f);*/
 
-    ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, needed for esp-idf-lib libraries
+        ESP_ERROR_CHECK(i2cdev_init());  // start i2cdev library, needed for
+                                         // esp-idf-lib libraries
 
-    xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
-}
+        xTaskCreate(&taskCurrent, "read INA219 data",
+                    configMINIMAL_STACK_SIZE * 8, NULL, 2, NULL);
+    }
