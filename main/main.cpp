@@ -113,21 +113,23 @@ void closefileSDCard(FILE *&f) {
     fclose(f);
     ESP_LOGI("SD", "File closed");
 }
- 
-void taskCurrent(void * params) {
-    ina219_t sensor; // device struct
+
+void taskCurrent(void *params) {
+    ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO, SCL_GPIO)); // if fails, aborts execution
+    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO,
+                                     SCL_GPIO));  // if fails, aborts execution
     ESP_LOGI("INA219", "Initializing INA219");
     ESP_ERROR_CHECK(ina219_init(&sensor));
 
     ESP_LOGI("INA219", "Configuring INA219");
-    ESP_ERROR_CHECK(ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
-            INA219_RES_12BIT_1S, INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
+    ESP_ERROR_CHECK(ina219_configure(
+        &sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125, INA219_RES_12BIT_1S,
+        INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
 
     float current;
-    
+
     ESP_LOGI("INA219", "Starting the loop");
     while (1) {
         ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
@@ -135,7 +137,6 @@ void taskCurrent(void * params) {
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
-}
 
 void taskVoltage(void * params) {
     VoltageSensor AileronServo;
@@ -154,7 +155,6 @@ void taskVoltage(void * params) {
 extern "C" void app_main(void) {
     
     /*startSDCard();
-
     FILE *f;
     openfileSDCard(f, "accel.txt");
     fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
