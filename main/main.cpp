@@ -177,70 +177,75 @@ void taskLoRa_tx(void *params) {
     }
 }
 
-void taskBMP280(void * pvParameters) {
-	// setup
-	ESP_LOGI("BMP280", "Setting up BMP280");
-	bmp280_params_t params;
-	bmp280_init_default_params(&params);
-	bmp280_t dev;
-	memset(&dev, 0, sizeof(bmp280_t));
+void taskBMP280(void *pvParameters) {
+    // setup
+    ESP_LOGI("BMP280", "Setting up BMP280");
+    bmp280_params_t params;
+    bmp280_init_default_params(&params);
+    bmp280_t dev;
+    memset(&dev, 0, sizeof(bmp280_t));
 
-	// initializing
-	ESP_LOGI("BMP280", "Initializing BMP280");
-	ESP_ERROR_CHECK(bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, 0, SDA_GPIO, SCL_GPIO));
+    // initializing
+    ESP_LOGI("BMP280", "Initializing BMP280");
+    ESP_ERROR_CHECK(
+        bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, 0, SDA_GPIO, SCL_GPIO));
 
-	// attempt initialization 5 times
-	int attempt = 1;
-	do {
-		ESP_LOGE("BMP280", "Failed to initialize (attempt %d/5)", attempt);
-		attempt++;
-		vTaskDelay(5000 / portTICK_PERIOD_MS);
-	} while(bmp280_init(&dev, &params) != ESP_OK && attempt < 5);
+    // attempt initialization 5 times
+    int attempt = 1;
+    do {
+        ESP_LOGE("BMP280", "Failed to initialize (attempt %d/5)", attempt);
+        attempt++;
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+    } while (bmp280_init(&dev, &params) != ESP_OK && attempt < 5);
 
-	// suspend task after 5 attempts
-	if(attempt >= 5){
-		ESP_LOGE("BMP280", "Failed to initialize, suspending task");
-		vTaskSuspend(NULL);
-	}
+    // suspend task after 5 attempts
+    if (attempt >= 5) {
+        ESP_LOGE("BMP280", "Failed to initialize, suspending task");
+        vTaskSuspend(NULL);
+    }
 
-	bool bme280p = dev.id == BME280_CHIP_ID;
-	ESP_LOGI("BMP280", "Found %s", bme280p ? "BME280" : "BMP280");
+    bool bme280p = dev.id == BME280_CHIP_ID;
+    ESP_LOGI("BMP280", "Found %s", bme280p ? "BME280" : "BMP280");
 
-	float pressure, temperature, humidity;
+    float pressure, temperature, humidity;
 
-	// loop
-	ESP_LOGI("BMP280", "Starting the loop");
-	while (1){
-		// reading temp, pressure and humidity (if available)
-		if(bmp280_read_float(&dev, &temperature, &pressure, &humidity) != ESP_OK){
-			printf("Temperature/pressure reading failed\n");
-			continue;
-		}
+    // loop
+    ESP_LOGI("BMP280", "Starting the loop");
+    while (1) {
+        // reading temp, pressure and humidity (if available)
+        if (bmp280_read_float(&dev, &temperature, &pressure, &humidity) !=
+            ESP_OK) {
+            printf("Temperature/pressure reading failed\n");
+            continue;
+        }
 
-		// printing readings
-		printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
-		if (bme280p)	// print humidity if available
-			printf(", Humidity: %.2f\n", humidity);
-		else
-			printf("\n");
-		
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
+        // printing readings
+        printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
+        if (bme280p)  // print humidity if available
+            printf(", Humidity: %.2f\n", humidity);
+        else
+            printf("\n");
+
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 }
 
 extern "C" void app_main(void) {
-  /*startSDCard();
-  FILE *f;
-  openfileSDCard(f, "accel.txt");
-  fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
-  closefileSDCard(f);*/
+    /*startSDCard();
+    FILE *f;
+    openfileSDCard(f, "accel.txt");
+    fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
+    closefileSDCard(f);*/
 
-	// start i2cdev library, dependency for esp-idf-lib libraries
-	ESP_ERROR_CHECK(i2cdev_init());
+    // start i2cdev library, dependency for esp-idf-lib libraries
+    ESP_ERROR_CHECK(i2cdev_init());
 
-	// Tasks
-	xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
-	xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
-	xTaskCreate(&taskBMP280, "read bmp280 pressure temp", configMINIMAL_STACK_SIZE*8, NULL, 3, NULL);
-  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
+    // Tasks
+    xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE * 8,
+                NULL, 2, NULL);
+    xTaskCreate(&taskVoltage, "read voltage measurement",
+                configMINIMAL_STACK_SIZE * 8, NULL, 2, NULL);
+    xTaskCreate(&taskBMP280, "read bmp280 pressure temp",
+                configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
+    xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
 }
