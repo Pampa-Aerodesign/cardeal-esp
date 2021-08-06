@@ -4,7 +4,9 @@
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 
-void VoltageSensor::setup(adc1_channel_t ADC1_CHANNEL_num, adc_atten_t ADC_ATTEN_DB_num, float R1 /*= 0*/, float R2 /*= 0*/) {
+void VoltageSensor::setup(adc1_channel_t ADC1_CHANNEL_num,
+                          adc_atten_t ADC_ATTEN_DB_num, float R1 /*= 0*/,
+                          float R2 /*= 0*/) {
     m_channel = ADC1_CHANNEL_num;
     m_atten = ADC_ATTEN_DB_num;
     m_R1 = R1;
@@ -15,9 +17,11 @@ void VoltageSensor::setup(adc1_channel_t ADC1_CHANNEL_num, adc_atten_t ADC_ATTEN
 }
 
 esp_adc_cal_value_t VoltageSensor::calib() {
-    m_calib_chars = (esp_adc_cal_characteristics_t*)calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    m_calib_chars = (esp_adc_cal_characteristics_t*)calloc(
+        1, sizeof(esp_adc_cal_characteristics_t));
 
-    return esp_adc_cal_characterize(m_unit, m_atten, m_resolution, DEFAULT_VREF, m_calib_chars);
+    return esp_adc_cal_characterize(m_unit, m_atten, m_resolution, DEFAULT_VREF,
+                                    m_calib_chars);
 }
 
 void VoltageSensor::calibLog() {
@@ -40,16 +44,14 @@ int VoltageSensor::read_mV(int number_of_samples /*= 1*/) {
         adc_reading += adc1_get_raw(m_channel);
     }
     adc_reading /= number_of_samples;
-    
+
     // Convert value to mV
     measured_mV = esp_adc_cal_raw_to_voltage(adc_reading, m_calib_chars);
 
     // Apply voltage divider scaling (if configured)
     if (m_R1 && m_R2) {
-        return (int)( (float)measured_mV*(m_R1+m_R2)/m_R2 );
-    }
-    else {
+        return (int)((float)measured_mV * (m_R1 + m_R2) / m_R2);
+    } else {
         return measured_mV;
     }
 }
-

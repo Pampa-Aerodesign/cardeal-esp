@@ -33,9 +33,12 @@
 
 // Temperature Sensor (BMP280)
 #include "bmp280.h"
+
+// LoRa communication via SX1276 chips
+#include "lora.h"
 /* clang-format on */
 
-void startSDCard() {
+/*void startSDCard() {
     esp_err_t ret;
 
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
@@ -94,9 +97,9 @@ void startSDCard() {
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
-}
+}*/
 
-void openfileSDCard(FILE *&f, const char *file_name) {
+/*void openfileSDCard(FILE *&f, const char *file_name) {
     char file_dir[30] = MOUNT_POINT "/";
     strcat(file_dir, file_name);
     ESP_LOGI("SD", "Opening file %s", file_dir);
@@ -105,32 +108,34 @@ void openfileSDCard(FILE *&f, const char *file_name) {
         ESP_LOGE("SD", "Failed to open file for writing");
         return;
     }
-}
+}*/
 
 /*void writeinSDCard(FILE *&f, char * string) {
     fprintf(f, string);
     ESP_LOGI("SD", "File written");
 }*/
 
-void closefileSDCard(FILE *&f) {
+/*void closefileSDCard(FILE *&f) {
     fclose(f);
     ESP_LOGI("SD", "File closed");
-}
- 
-void taskCurrent(void * params) {
-    ina219_t sensor; // device struct
+}*/
+
+void taskCurrent(void *params) {
+    ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO, SCL_GPIO)); // if fails, aborts execution
+    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO,
+                                     SCL_GPIO));  // if fails, aborts execution
     ESP_LOGI("INA219", "Initializing INA219");
     ESP_ERROR_CHECK(ina219_init(&sensor));
 
     ESP_LOGI("INA219", "Configuring INA219");
-    ESP_ERROR_CHECK(ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
-            INA219_RES_12BIT_1S, INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
+    ESP_ERROR_CHECK(ina219_configure(
+        &sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125, INA219_RES_12BIT_1S,
+        INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
 
     float current;
-    
+
     ESP_LOGI("INA219", "Starting the loop");
     while (1) {
         ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
@@ -140,7 +145,7 @@ void taskCurrent(void * params) {
     }
 }
 
-void taskVoltage(void * params) {
+void taskVoltage(void *params) {
     VoltageSensor AileronServo;
 
     AileronServo.setup(ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1.0, 0.470);
@@ -151,7 +156,25 @@ void taskVoltage(void * params) {
         printf("voltage is %dmV\n", value);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+}
 
+void taskLoRa_tx(void *params) {
+    lora_init();
+    /* Exact same configuration as the receiver chip: */
+    lora_set_frequency(915e6);
+    lora_set_tx_power(2);
+    lora_set_spreading_factor(8);
+    lora_set_coding_rate(5);
+    lora_set_preamble_length(8);
+    lora_explicit_header_mode();
+    lora_set_sync_word(0x12);
+    lora_disable_crc();
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        lora_send_packet((uint8_t *)"cardeal-esp", sizeof("cardeal-esp"));
+        printf("Packet sent...\n");
+    }
 }
 
 void taskBMP280(void * pvParameters) {
@@ -206,6 +229,11 @@ void taskBMP280(void * pvParameters) {
 }
 
 extern "C" void app_main(void) {
+  /*startSDCard();
+  FILE *f;
+  openfileSDCard(f, "accel.txt");
+  fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
+  closefileSDCard(f);*/
 
 	// start i2cdev library, dependency for esp-idf-lib libraries
 	ESP_ERROR_CHECK(i2cdev_init());
@@ -214,4 +242,5 @@ extern "C" void app_main(void) {
 	xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
 	xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
 	xTaskCreate(&taskBMP280, "read bmp280 pressure temp", configMINIMAL_STACK_SIZE*8, NULL, 3, NULL);
+  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
 }
