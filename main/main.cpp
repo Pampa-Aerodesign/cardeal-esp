@@ -26,6 +26,10 @@
 
 // Current Sensor (INA219)
 #include "ina219.h"
+
+// Voltage Measurement (ADC)
+#include "src/VoltageSensor.hpp"
+#include "driver/adc.h"
 /* clang-format on */
 
 void startSDCard() {
@@ -134,17 +138,30 @@ void taskCurrent(void *params) {
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 
-    extern "C" void app_main(void) {
-        /*startSDCard();
+void taskVoltage(void * params) {
+    VoltageSensor AileronServo;
 
-        FILE *f;
-        openfileSDCard(f, "accel.txt");
-        fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
-        closefileSDCard(f);*/
+    AileronServo.setup(ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1.0, 0.470);
+    AileronServo.calibLog();
 
-        ESP_ERROR_CHECK(i2cdev_init());  // start i2cdev library, needed for
-                                         // esp-idf-lib libraries
-
-        xTaskCreate(&taskCurrent, "read INA219 data",
-                    configMINIMAL_STACK_SIZE * 8, NULL, 2, NULL);
+    while (true) {
+        int value = AileronServo.read_mV(50);
+        printf("voltage is %dmV\n", value);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+
+}
+
+extern "C" void app_main(void) {
+    
+    /*startSDCard();
+    FILE *f;
+    openfileSDCard(f, "accel.txt");
+    fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
+    closefileSDCard(f);*/
+
+    ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, dependency for esp-idf-lib libraries
+
+    xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
+    xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
+}

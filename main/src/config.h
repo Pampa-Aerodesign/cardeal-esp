@@ -26,4 +26,7 @@ static constexpr gpio_num_t PIN_NUM_MOSI = GPIO_NUM_15;
 static constexpr gpio_num_t PIN_NUM_CLK = GPIO_NUM_14;
 static constexpr gpio_num_t PIN_NUM_CS = GPIO_NUM_13;
 
+// ADC1 (for voltage measurement)
+#define DEFAULT_VREF 1100 // nominal value, can be measured with adc_vref_to_gpio()
+
 #endif  // CARDEAL_CONFIG_H_
