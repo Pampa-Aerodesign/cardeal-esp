@@ -140,6 +140,7 @@ void taskCurrent(void *params) {
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
+}
 
 void taskVoltage(void * params) {
     VoltageSensor AileronServo;
