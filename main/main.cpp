@@ -142,7 +142,7 @@ void taskCurrent(void *params) {
     }
 }
 
-void taskVoltage(void * params) {
+void taskVoltage(void *params) {
     VoltageSensor AileronServo;
 
     AileronServo.setup(ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1.0, 0.470);
@@ -153,10 +153,9 @@ void taskVoltage(void * params) {
         printf("voltage is %dmV\n", value);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
-
 }
 
-void taskLoRa_tx(void * params) {
+void taskLoRa_tx(void *params) {
     lora_init();
     /* Exact same configuration as the receiver chip: */
     lora_set_frequency(915e6);
@@ -167,25 +166,26 @@ void taskLoRa_tx(void * params) {
     lora_explicit_header_mode();
     lora_set_sync_word(0x12);
     lora_disable_crc();
-    
+
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(5000));
-        lora_send_packet((uint8_t*)"cardeal-esp", sizeof("cardeal-esp"));
+        lora_send_packet((uint8_t *)"cardeal-esp", sizeof("cardeal-esp"));
         printf("Packet sent...\n");
     }
 }
 
 extern "C" void app_main(void) {
-    
     /*startSDCard();
     FILE *f;
     openfileSDCard(f, "accel.txt");
     fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
     closefileSDCard(f);*/
 
-    ESP_ERROR_CHECK(i2cdev_init()); // start i2cdev library, dependency for esp-idf-lib libraries
+    ESP_ERROR_CHECK(i2cdev_init());  // start i2cdev library, dependency for
+                                     // esp-idf-lib libraries
 
-    //xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
-    //xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
+    // xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE*8,
+    // NULL, 2, NULL); xTaskCreate(&taskVoltage, "read voltage measurement",
+    // configMINIMAL_STACK_SIZE*8, NULL, 2, NULL);
     xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
 }
