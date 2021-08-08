@@ -120,11 +120,11 @@
     ESP_LOGI("SD", "File closed");
 }*/
 
-void taskCurrent(void *params) {
+void taskCurrent(void *params_i2c_address) {
     ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(&sensor, I2C_ADDR, I2C_PORT, SDA_GPIO,
+    ESP_ERROR_CHECK(ina219_init_desc(&sensor, (int)params_i2c_address, I2C_PORT, SDA_GPIO,
                                      SCL_GPIO));  // if fails, aborts execution
     ESP_LOGI("INA219", "Initializing INA219");
     ESP_ERROR_CHECK(ina219_init(&sensor));
@@ -139,26 +139,26 @@ void taskCurrent(void *params) {
     ESP_LOGI("INA219", "Starting the loop");
     while (1) {
         ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
-        printf("Current: %.04f mA\n", current * 1000);
+        printf("Current: %.04f mA, address: 0x%x\n", current * 1000, (int)params_i2c_address);
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
 
-void taskVoltage(void *params) {
-    VoltageSensor AileronServo;
+void taskVoltage(void *pvParameters) {
+    VoltageSensor sensor;
 
-    AileronServo.setup(ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1.0, 0.470);
-    AileronServo.calibLog();
+    sensor.setup(ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1.0, 0.470);
+    sensor.calibLog();
 
     while (true) {
-        int value = AileronServo.read_mV(50);
+        int value = sensor.read_mV(50);
         printf("voltage is %dmV\n", value);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
-void taskLoRa_tx(void *params) {
+void taskLoRa_tx(void *pvParameters) {
     lora_init();
     /* Exact same configuration as the receiver chip: */
     lora_set_frequency(915e6);
@@ -241,11 +241,11 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(i2cdev_init());
 
     // Tasks
-    xTaskCreate(&taskCurrent, "read INA219 data", configMINIMAL_STACK_SIZE * 8,
-                NULL, 2, NULL);
-    xTaskCreate(&taskVoltage, "read voltage measurement",
-                configMINIMAL_STACK_SIZE * 8, NULL, 2, NULL);
-    xTaskCreate(&taskBMP280, "read bmp280 pressure temp",
-                configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
-    xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
+    xTaskCreate(&taskCurrent, "INA219 bateria", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_GND, 2, NULL); // A1 open A0 open
+    xTaskCreate(&taskCurrent, "INA219 aileron direito", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_VS, 2, NULL); // A1 open A0 bridged
+    xTaskCreate(&taskCurrent, "INA219 leme direito", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_GND, 2, NULL); // A1 bridged A0 open
+    xTaskCreate(&taskCurrent, "INA219 profundor direito", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2, NULL); // A1 bridged A0 bridged
+    // xTaskCreate(&taskVoltage, "read voltage measurement", configMINIMAL_STACK_SIZE * 8, NULL, 2, NULL);
+    xTaskCreate(&taskBMP280, "BMP280 read pressure temp", configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
+    // xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
 }
