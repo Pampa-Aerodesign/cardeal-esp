@@ -179,7 +179,6 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(i2cdev_init());
 
     // Tasks
-
     xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
                 (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
     xTaskCreate(&taskCurrent, "INA219 right aileron",
