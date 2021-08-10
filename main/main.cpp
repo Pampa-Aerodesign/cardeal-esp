@@ -44,93 +44,12 @@ struct params_taskVoltage_t {
     float R1, R2; // if there's no resistors, both 0
 };
 
-/*void startSDCard() {
-    esp_err_t ret;
-
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,   // won't format card if mount fails
-        .max_files = 5,                    // max number of open files
-        .allocation_unit_size = 16 * 1024  // 16 kb allocation unit size
-    };
-
-    sdmmc_card_t *card;
-    const char mount_point[] = MOUNT_POINT;
-    ESP_LOGI("SD", "Initializing SD card");
-    ESP_LOGI("SD", "Using SPI peripheral");
-
-    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.max_freq_khz =
-        MAX_FREQ_SPI_SDCARD;  // for some reason, the default frequency value
-                              // (20 MHz) issues errors when running
-
-    spi_bus_config_t bus_cfg = {.mosi_io_num = PIN_NUM_MOSI,
-                                .miso_io_num = PIN_NUM_MISO,
-                                .sclk_io_num = PIN_NUM_CLK,
-                                .quadwp_io_num = -1,
-                                .quadhd_io_num = -1,
-                                .max_transfer_sz = 4000,
-                                .flags = 0,
-                                .intr_flags = 0};
-
-    ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, 1);
-    if (ret != ESP_OK) {
-        ESP_LOGE("SD", "Failed to initialize bus.");
-        return;
-    }
-
-    // This initializes the slot without card detect (CD -> slot_config.gpio_cd)
-    // and write protect (WP -> slot_config.gpio_wp) signals
-    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = PIN_NUM_CS;  // CS pin
-    slot_config.host_id = (spi_host_device_t)host.slot;
-
-    ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config,
-                                  &mount_config, &card);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE("SD",
-                     "Failed to mount filesystem. "
-                     "If you want the card to be formatted, set the "
-                     "EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
-        } else {
-            ESP_LOGE("SD",
-                     "Failed to initialize the card (%s). "
-                     "Make sure SD card lines have pull-up resistors in place.",
-                     esp_err_to_name(ret));
-        }
-        return;
-    }
-
-    // Card has been initialized, print its properties
-    sdmmc_card_print_info(stdout, card);
-}*/
-
-/*void openfileSDCard(FILE *&f, const char *file_name) {
-    char file_dir[30] = MOUNT_POINT "/";
-    strcat(file_dir, file_name);
-    ESP_LOGI("SD", "Opening file %s", file_dir);
-    f = fopen(file_dir, "a");
-    if (f == NULL) {
-        ESP_LOGE("SD", "Failed to open file for writing");
-        return;
-    }
-}*/
-
-/*void writeinSDCard(FILE *&f, char * string) {
-    fprintf(f, string);
-    ESP_LOGI("SD", "File written");
-}*/
-
-/*void closefileSDCard(FILE *&f) {
-    fclose(f);
-    ESP_LOGI("SD", "File closed");
-}*/
-
 void taskCurrent(void *params_i2c_address) {
     ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(&sensor, (int)params_i2c_address, I2C_PORT, SDA_GPIO,
+    ESP_ERROR_CHECK(ina219_init_desc(&sensor, (int)params_i2c_address, I2C_PORT,
+                                     SDA_GPIO,
                                      SCL_GPIO));  // if fails, aborts execution
     ESP_LOGI("INA219", "Initializing INA219");
     ESP_ERROR_CHECK(ina219_init(&sensor));
@@ -145,7 +64,8 @@ void taskCurrent(void *params_i2c_address) {
     ESP_LOGI("INA219", "Starting the loop");
     while (1) {
         ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
-        printf("Current: %.04f mA, address: 0x%x\n", current * 1000, (int)params_i2c_address);
+        printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
+               (int)params_i2c_address);
 
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
@@ -239,11 +159,6 @@ void taskBMP280(void *pvParameters) {
 }
 
 extern "C" void app_main(void) {
-    /*startSDCard();
-    FILE *f;
-    openfileSDCard(f, "accel.txt");
-    fprintf(f, "x(g)     y(g)     z(g)    t(us)\n");
-    closefileSDCard(f);*/
 
     // Task parameters
     static const struct params_taskVoltage_t BatteryElec = {ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1, 0.47}; // BAT_ELEC (adc range: 470-7660mV)
@@ -255,16 +170,18 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(i2cdev_init());
 
     // Tasks
-    // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_GND, 2, NULL); // A1 open A0 open
-    // xTaskCreate(&taskCurrent, "INA219 right aileron", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_VS, 2, NULL); // A1 open A0 bridged
-    // xTaskCreate(&taskCurrent, "INA219 right rudder", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_GND, 2, NULL); // A1 bridged A0 open
-    // xTaskCreate(&taskCurrent, "INA219 right elevator", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2, NULL); // A1 bridged A0 bridged
+
+    xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_GND, 2, NULL); // A1 open A0 open
+    xTaskCreate(&taskCurrent, "INA219 right aileron", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_VS, 2, NULL); // A1 open A0 bridged
+    xTaskCreate(&taskCurrent, "INA219 right rudder", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_GND, 2, NULL); // A1 bridged A0 open
+    xTaskCreate(&taskCurrent, "INA219 right elevator", configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2, NULL); // A1 bridged A0 bridged
     
-    // xTaskCreate(&taskBMP280, "BMP280 read pressure temp", configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
+    xTaskCreate(&taskBMP280, "BMP280 read pressure temp", configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
 
     xTaskCreate(&taskVoltage, "read battery voltage", configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL); // GPIO36 (= VP)
     xTaskCreate(&taskVoltage, "read regulator voltage", configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL); // GPIO39 (= VN)
     xTaskCreate(&taskVoltage, "read DAQ battery voltage", configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL); // GPIO33
     xTaskCreate(&taskVoltage, "read DAQ regulator voltage", configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL); // GPIO34
-    // xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
+
+    xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
 }
