@@ -48,35 +48,41 @@ void taskCurrent(void *params_i2c_address) {
     ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(&sensor, (int)params_i2c_address, I2C_PORT,
-                                     SDA_GPIO,
-                                     SCL_GPIO));  // if fails (invalid address), aborts execution
+    ESP_ERROR_CHECK(ina219_init_desc(
+        &sensor, (int)params_i2c_address, I2C_PORT, SDA_GPIO,
+        SCL_GPIO));  // if fails (invalid address), aborts execution
     ESP_LOGI("INA219", "Initializing INA219");
-    
+
     // attempt initialization 5 times
     uint8_t attempt = 1;
-    while(ina219_init(&sensor) != ESP_OK && attempt <= 5) {
-        ESP_LOGE("INA219", "Failed to initialize 0x%x. Is the wiring connected? (attempt %d/5)", (int)params_i2c_address, attempt);
+    while (ina219_init(&sensor) != ESP_OK && attempt <= 5) {
+        ESP_LOGE("INA219",
+                 "Failed to initialize 0x%x. Is the wiring connected? (attempt "
+                 "%d/5)",
+                 (int)params_i2c_address, attempt);
         vTaskDelay(pdMS_TO_TICKS(5000));
         attempt++;
     }
-    if(attempt > 5) {
-        ESP_LOGE("INA219", "Failed to initialize 0x%x, suspending task", (int)params_i2c_address);
+    if (attempt > 5) {
+        ESP_LOGE("INA219", "Failed to initialize 0x%x, suspending task",
+                 (int)params_i2c_address);
         vTaskSuspend(NULL);
     }
     // if successful, take readings
     else {
         ESP_LOGI("INA219", "Configuring INA219");
-        ESP_ERROR_CHECK(ina219_configure(
-        &sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125, INA219_RES_12BIT_1S,
-        INA219_RES_12BIT_1S, INA219_MODE_CONT_SHUNT_BUS));
+        ESP_ERROR_CHECK(ina219_configure(&sensor, INA219_BUS_RANGE_16V,
+                                         INA219_GAIN_0_125, INA219_RES_12BIT_1S,
+                                         INA219_RES_12BIT_1S,
+                                         INA219_MODE_CONT_SHUNT_BUS));
 
         float current;
 
         ESP_LOGI("INA219", "Starting the loop");
         while (1) {
             ESP_ERROR_CHECK(ina219_get_current(&sensor, &current));
-            printf("Current: %.04f mA, address: 0x%x\n", current * 1000, (int)params_i2c_address);
+            printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
+                   (int)params_i2c_address);
 
             vTaskDelay(500 / portTICK_PERIOD_MS);
         }
