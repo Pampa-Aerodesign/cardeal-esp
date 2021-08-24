@@ -49,6 +49,17 @@ xQueueHandle interputQueue;
 const int blades = 1;
 static int pulses = 0;
 
+// ISR
+static void IRAM_ATTR gpio_isr_handler(void *args) {
+    // pulse
+    if (!gpio_get_level(PIN_SWITCH)) {
+        pulses++;
+    }
+
+    // xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+}
+
 void taskCurrent(void *params_i2c_address) {
     ina219_t sensor;  // device struct
     memset(&sensor, 0, sizeof(ina219_t));
@@ -215,17 +226,6 @@ void taskRPM() {
         //	vTaskDelay(1000 / portTICK_PERIOD_MS);
         //}
     }
-}
-
-// ISR
-static void IRAM_ATTR gpio_isr_handler(void *args) {
-    // pulse
-    if (!gpio_get_level(PIN_SWITCH)) {
-        pulses++;
-    }
-
-    // xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
 }
 
 extern "C" void app_main(void) {
