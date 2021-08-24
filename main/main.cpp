@@ -76,10 +76,10 @@ void taskCurrent(void *params_i2c_address) {
     // if successful, take readings
     else {
         ESP_LOGI("INA219", "Configuring INA219");
-        ESP_ERROR_CHECK_WITHOUT_ABORT(ina219_configure(&sensor, INA219_BUS_RANGE_16V,
-                                         INA219_GAIN_0_125, INA219_RES_12BIT_1S,
-                                         INA219_RES_12BIT_1S,
-                                         INA219_MODE_CONT_SHUNT_BUS));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(
+            ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
+                             INA219_RES_12BIT_1S, INA219_RES_12BIT_1S,
+                             INA219_MODE_CONT_SHUNT_BUS));
 
         float current;
 
