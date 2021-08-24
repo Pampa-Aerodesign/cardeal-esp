@@ -183,49 +183,49 @@ void taskBMP280(void *pvParameters) {
     }
 }
 
-void taskRPM(){
-	//int pulses = 0;
-	int rpm = 0;
-	//int pinNumber;
+void taskRPM() {
+    // int pulses = 0;
+    int rpm = 0;
+    // int pinNumber;
 
-	// GPIO setup
-	gpio_pad_select_gpio(PIN_SWITCH);
-	gpio_set_direction(PIN_SWITCH, GPIO_MODE_INPUT);
-	gpio_pulldown_en(PIN_SWITCH);
-	gpio_pullup_dis(PIN_SWITCH);
-	gpio_set_intr_type(PIN_SWITCH, GPIO_INTR_NEGEDGE);
+    // GPIO setup
+    gpio_pad_select_gpio(PIN_SWITCH);
+    gpio_set_direction(PIN_SWITCH, GPIO_MODE_INPUT);
+    gpio_pulldown_en(PIN_SWITCH);
+    gpio_pullup_dis(PIN_SWITCH);
+    gpio_set_intr_type(PIN_SWITCH, GPIO_INTR_NEGEDGE);
 
-	// Creating queue
-	interputQueue = xQueueCreate(1, sizeof(int));
+    // Creating queue
+    interputQueue = xQueueCreate(1, sizeof(int));
 
-	// ISR setup
-	gpio_install_isr_service(0);
-	gpio_isr_handler_add(PIN_SWITCH, gpio_isr_handler, NULL);
+    // ISR setup
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(PIN_SWITCH, gpio_isr_handler, NULL);
 
-	while(true){
-		//if (xQueueReceive(interputQueue, &(pulses), 0) == pdTRUE){
-			rpm = pulses; //(pulses * 60) / blades;
-			pulses = 0;
+    while (true) {
+        // if (xQueueReceive(interputQueue, &(pulses), 0) == pdTRUE){
+        rpm = pulses;  //(pulses * 60) / blades;
+        pulses = 0;
 
-			ESP_LOGI("RPM", "%d", rpm*60);
-			vTaskDelay(1000 / portTICK_PERIOD_MS);
-		//}
-		//else{
-		//	ESP_LOGI("RPM", "Queue Failed");
-		//	vTaskDelay(1000 / portTICK_PERIOD_MS);
-		//}
-	}
+        ESP_LOGI("RPM", "%d", rpm * 60);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        //}
+        // else{
+        //	ESP_LOGI("RPM", "Queue Failed");
+        //	vTaskDelay(1000 / portTICK_PERIOD_MS);
+        //}
+    }
 }
 
 // ISR
-static void IRAM_ATTR gpio_isr_handler(void *args){
-	// pulse
-	if(!gpio_get_level(PIN_SWITCH)){
-		pulses++;
-	}
+static void IRAM_ATTR gpio_isr_handler(void *args) {
+    // pulse
+    if (!gpio_get_level(PIN_SWITCH)) {
+        pulses++;
+    }
 
-	//xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
-	vTaskDelay(50 / portTICK_PERIOD_MS);
+    // xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
 }
 
 extern "C" void app_main(void) {
@@ -262,8 +262,8 @@ extern "C" void app_main(void) {
     xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
                 configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
 
-		xTaskCreate(&taskRPM, "wheel rpm", 
-								configMINIMAL_STACK_SIZE * 8, NULL, 1, NULL);
+    xTaskCreate(&taskRPM, "wheel rpm", configMINIMAL_STACK_SIZE * 8, NULL, 1,
+                NULL);
 
     xTaskCreate(&taskVoltage, "read battery voltage",
                 configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2,
