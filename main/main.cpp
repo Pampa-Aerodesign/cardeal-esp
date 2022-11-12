@@ -36,247 +36,257 @@
 
 // LoRa communication via SX1276 chips
 #include "lora.h"
-/* clang-format on */
 
 struct params_taskVoltage_t {
-    adc1_channel_t adc1_channel;
-    adc_atten_t adc_atten_db;
-    float R1, R2;  // if there's no resistors, both 0
+  adc1_channel_t adc1_channel;
+  adc_atten_t adc_atten_db;
+  float R1, R2;  // if there's no resistors, both 0
 };
 
-xQueueHandle interputQueue;
+// xQueueHandle interputQueue;
 
-const int blades = 1;
-static int pulses = 0;
+// const int blades = 1;
+// static int pulses = 0;
 
 // ISR
-static void IRAM_ATTR gpio_isr_handler(void *args) {
-    // pulse
-    if (!gpio_get_level(PIN_SWITCH)) {
-        pulses++;
-    }
+// static void IRAM_ATTR gpio_isr_handler(void *args) {
+//     // pulse
+//     if (!gpio_get_level(PIN_SWITCH)) {
+//         pulses++;
+//     }
 
-    // xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
-}
+//     // xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
+//     vTaskDelay(50 / portTICK_PERIOD_MS);
+// }
+
+// LoRa packet struct
+typedef struct lora_packet{
+  int baro, temp;
+} LoraPacket;
 
 void taskCurrent(void *params_i2c_address) {
-    ina219_t sensor;  // device struct
-    memset(&sensor, 0, sizeof(ina219_t));
+  ina219_t sensor;  // device struct
+  memset(&sensor, 0, sizeof(ina219_t));
 
-    ESP_ERROR_CHECK(ina219_init_desc(
-        &sensor, (int)params_i2c_address, I2C_PORT, SDA_GPIO,
-        SCL_GPIO));  // if fails (invalid address), aborts execution
-    ESP_LOGI("INA219", "Initializing INA219");
+  ESP_ERROR_CHECK(ina219_init_desc(
+      &sensor, (int)params_i2c_address, I2C_PORT, SDA_GPIO,
+      SCL_GPIO));  // if fails (invalid address), aborts execution
+  ESP_LOGI("INA219", "Initializing INA219");
 
-    // attempt initialization 5 times
-    uint8_t attempt = 1;
-    while (ina219_init(&sensor) != ESP_OK && attempt <= 5) {
-        ESP_LOGE("INA219",
-                 "Failed to initialize 0x%x. Is the wiring connected? (attempt "
-                 "%d/5)",
-                 (int)params_i2c_address, attempt);
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        attempt++;
+  // attempt initialization 5 times
+  uint8_t attempt = 1;
+  while (ina219_init(&sensor) != ESP_OK && attempt <= 5) {
+    ESP_LOGE("INA219",
+              "Failed to initialize 0x%x. Is the wiring connected? (attempt "
+              "%d/5)",
+              (int)params_i2c_address, attempt);
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    attempt++;
+  }
+  if (attempt > 5) {
+    ESP_LOGE("INA219", "Failed to initialize 0x%x, suspending task",
+             (int)params_i2c_address);
+    vTaskSuspend(NULL);
+  }
+  // if successful, take readings
+  else {
+    ESP_LOGI("INA219", "Configuring INA219");
+    ESP_ERROR_CHECK_WITHOUT_ABORT(
+        ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
+                          INA219_RES_12BIT_1S, INA219_RES_12BIT_1S,
+                          INA219_MODE_CONT_SHUNT_BUS));
+
+    float current;
+
+    ESP_LOGI("INA219", "Starting the loop");
+    while (1) {
+      ina219_get_current(&sensor, &current);
+      printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
+             (int)params_i2c_address);
+
+      vTaskDelay(500 / portTICK_PERIOD_MS);
     }
-    if (attempt > 5) {
-        ESP_LOGE("INA219", "Failed to initialize 0x%x, suspending task",
-                 (int)params_i2c_address);
-        vTaskSuspend(NULL);
-    }
-    // if successful, take readings
-    else {
-        ESP_LOGI("INA219", "Configuring INA219");
-        ESP_ERROR_CHECK_WITHOUT_ABORT(
-            ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
-                             INA219_RES_12BIT_1S, INA219_RES_12BIT_1S,
-                             INA219_MODE_CONT_SHUNT_BUS));
-
-        float current;
-
-        ESP_LOGI("INA219", "Starting the loop");
-        while (1) {
-            ina219_get_current(&sensor, &current);
-            printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
-                   (int)params_i2c_address);
-
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-    }
+  }
 }
 
 void taskVoltage(void *pvParameters) {
-    params_taskVoltage_t *params = (params_taskVoltage_t *)pvParameters;
+  params_taskVoltage_t *params = (params_taskVoltage_t *)pvParameters;
 
-    VoltageSensor sensor;
+  VoltageSensor sensor;
 
-    sensor.setup(params->adc1_channel, params->adc_atten_db, params->R1,
-                 params->R2);
-    sensor.calibLog();
+  sensor.setup(params->adc1_channel, params->adc_atten_db, params->R1,
+               params->R2);
+  sensor.calibLog();
 
-    while (true) {
-        int value = sensor.read_mV(50);
-        printf("Voltage: %d mV, multiplier: %f\n", value,
-               (params->R1 + params->R2) / params->R2);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+  while (true) {
+    int value = sensor.read_mV(50);
+    printf("Voltage: %d mV, multiplier: %f\n", value,
+           (params->R1 + params->R2) / params->R2);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 }
 
 void taskLoRa_tx(void *pvParameters) {
-    lora_init();
-    /* Exact same configuration as the receiver chip: */
-    lora_set_frequency(915e6);
-    lora_set_tx_power(2);
-    lora_set_spreading_factor(8);
-    lora_set_coding_rate(5);
-    lora_set_preamble_length(8);
-    lora_explicit_header_mode();
-    lora_set_sync_word(0x12);
-    lora_disable_crc();
+  lora_init();
+  /* Exact same configuration as the receiver chip: */
+  lora_set_frequency(915e6);
+  lora_set_tx_power(17);
+  lora_set_spreading_factor(8);
+  lora_set_coding_rate(5);
+  lora_set_preamble_length(8);
+  // lora_explicit_header_mode();
+  lora_set_sync_word(0x12);
+  lora_disable_crc();
 
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        lora_send_packet((uint8_t *)"cardeal-esp", sizeof("cardeal-esp"));
-        printf("Packet sent...\n");
-    }
+  while (1) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    lora_send_packet((uint8_t *)pvParameters, sizeof(LoraPacket));
+    printf("Packet sent...\n");
+  }
 }
 
 void taskBMP280(void *pvParameters) {
-    // setup
-    ESP_LOGI("BMP280", "Setting up BMP280");
-    bmp280_params_t params;
-    bmp280_init_default_params(&params);
-    bmp280_t dev;
-    memset(&dev, 0, sizeof(bmp280_t));
+  // setup
+  ESP_LOGI("BMP280", "Setting up BMP280");
+  bmp280_params_t params;
+  bmp280_init_default_params(&params);
+  bmp280_t dev;
+  memset(&dev, 0, sizeof(bmp280_t));
 
-    // initializing
-    ESP_LOGI("BMP280", "Initializing BMP280");
-    ESP_ERROR_CHECK(
-        bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, 0, SDA_GPIO, SCL_GPIO));
+  // initializing
+  ESP_LOGI("BMP280", "Initializing BMP280");
+  ESP_ERROR_CHECK(
+      bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, 0, SDA_GPIO, SCL_GPIO));
 
-    // attempt initialization 5 times
-    int attempt = 1;
-    do {
-        ESP_LOGE("BMP280", "Failed to initialize (attempt %d/5)", attempt);
-        attempt++;
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-    } while (bmp280_init(&dev, &params) != ESP_OK && attempt < 5);
+  // attempt initialization 5 times
+  int attempt = 1;
+  do {
+    ESP_LOGE("BMP280", "Failed to initialize (attempt %d/5)", attempt);
+    attempt++;
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+  } while (bmp280_init(&dev, &params) != ESP_OK && attempt < 5);
 
-    // suspend task after 5 attempts
-    if (attempt >= 5) {
-        ESP_LOGE("BMP280", "Failed to initialize, suspending task");
-        vTaskSuspend(NULL);
+  // suspend task after 5 attempts
+  if (attempt >= 5) {
+    ESP_LOGE("BMP280", "Failed to initialize, suspending task");
+    vTaskSuspend(NULL);
+  }
+
+  bool bme280p = dev.id == BME280_CHIP_ID;
+  ESP_LOGI("BMP280", "Found %s", bme280p ? "BME280" : "BMP280");
+
+  float pressure, temperature, humidity;
+
+  // loop
+  ESP_LOGI("BMP280", "Starting the loop");
+  while (1) {
+    // reading temp, pressure and humidity (if available)
+    if(bmp280_read_float(&dev, &temperature, &pressure, &humidity) != ESP_OK){
+      printf("Temperature/pressure reading failed\n");
+      continue;
     }
 
-    bool bme280p = dev.id == BME280_CHIP_ID;
-    ESP_LOGI("BMP280", "Found %s", bme280p ? "BME280" : "BMP280");
+    // printing readings
+    printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
+    if (bme280p)  // print humidity if available
+      printf(", Humidity: %.2f\n", humidity);
+    else
+      printf("\n");
 
-    float pressure, temperature, humidity;
+    // update lora packet values
+    ((LoraPacket*) pvParameters)->baro = pressure;
+    ((LoraPacket*) pvParameters)->temp = temperature;
 
-    // loop
-    ESP_LOGI("BMP280", "Starting the loop");
-    while (1) {
-        // reading temp, pressure and humidity (if available)
-        if (bmp280_read_float(&dev, &temperature, &pressure, &humidity) !=
-            ESP_OK) {
-            printf("Temperature/pressure reading failed\n");
-            continue;
-        }
-
-        // printing readings
-        printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
-        if (bme280p)  // print humidity if available
-            printf(", Humidity: %.2f\n", humidity);
-        else
-            printf("\n");
-
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 }
 
 void taskRPM() {
-    // int pulses = 0;
-    int rpm = 0;
-    // int pinNumber;
+  // // int pulses = 0;
+  // int rpm = 0;
+  // // int pinNumber;
 
-    // GPIO setup
-    gpio_pad_select_gpio(PIN_SWITCH);
-    gpio_set_direction(PIN_SWITCH, GPIO_MODE_INPUT);
-    gpio_pulldown_en(PIN_SWITCH);
-    gpio_pullup_dis(PIN_SWITCH);
-    gpio_set_intr_type(PIN_SWITCH, GPIO_INTR_NEGEDGE);
+  // // GPIO setup
+  // gpio_pad_select_gpio(PIN_SWITCH);
+  // gpio_set_direction(PIN_SWITCH, GPIO_MODE_INPUT);
+  // gpio_pulldown_en(PIN_SWITCH);
+  // gpio_pullup_dis(PIN_SWITCH);
+  // gpio_set_intr_type(PIN_SWITCH, GPIO_INTR_NEGEDGE);
 
-    // Creating queue
-    interputQueue = xQueueCreate(1, sizeof(int));
+  // // Creating queue
+  // interputQueue = xQueueCreate(1, sizeof(int));
 
-    // ISR setup
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(PIN_SWITCH, gpio_isr_handler, NULL);
+  // // ISR setup
+  // gpio_install_isr_service(0);
+  // gpio_isr_handler_add(PIN_SWITCH, gpio_isr_handler, NULL);
 
-    while (true) {
-        // if (xQueueReceive(interputQueue, &(pulses), 0) == pdTRUE){
-        rpm = pulses;  //(pulses * 60) / blades;
-        pulses = 0;
+  // while (true) {
+  //     // if (xQueueReceive(interputQueue, &(pulses), 0) == pdTRUE){
+  //     rpm = pulses;  //(pulses * 60) / blades;
+  //     pulses = 0;
 
-        ESP_LOGI("RPM", "%d", rpm * 60);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        //}
-        // else{
-        //	ESP_LOGI("RPM", "Queue Failed");
-        //	vTaskDelay(1000 / portTICK_PERIOD_MS);
-        //}
-    }
+  //     ESP_LOGI("RPM", "%d", rpm * 60);
+  //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+  //     //}
+  //     // else{
+  //     //	ESP_LOGI("RPM", "Queue Failed");
+  //     //	vTaskDelay(1000 / portTICK_PERIOD_MS);
+  //     //}
+  // }
 }
 
 extern "C" void app_main(void) {
-    // Task parameters
-    static const struct params_taskVoltage_t BatteryElec = {
-        ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1,
-        0.47};  // BAT_ELEC (adc range: 470-7660mV)
-    static const struct params_taskVoltage_t BuckBoostElec = {
-        ADC1_CHANNEL_3, ADC_ATTEN_DB_11, 1,
-        0.47};  // BUCK (adc range: 470-7660mV)
-    static const struct params_taskVoltage_t BatteryDAQ = {
-        ADC1_CHANNEL_5, ADC_ATTEN_DB_11, 0,
-        0};  // BAT_ESP (adc range: 150-2450mV)
-    static const struct params_taskVoltage_t StepUpDAQ = {
-        ADC1_CHANNEL_6, ADC_ATTEN_DB_11, 1,
-        0.47};  // STEPUP (adc range: 470-7660mV)
+  // Task parameters
+  // static const struct params_taskVoltage_t BatteryElec = {
+  //     ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1,
+  //     0.47};  // BAT_ELEC (adc range: 470-7660mV)
+  // static const struct params_taskVoltage_t BuckBoostElec = {
+  //     ADC1_CHANNEL_3, ADC_ATTEN_DB_11, 1,
+  //     0.47};  // BUCK (adc range: 470-7660mV)
+  // static const struct params_taskVoltage_t BatteryDAQ = {
+  //     ADC1_CHANNEL_5, ADC_ATTEN_DB_11, 0,
+  //     0};  // BAT_ESP (adc range: 150-2450mV)
+  // static const struct params_taskVoltage_t StepUpDAQ = {
+  //     ADC1_CHANNEL_6, ADC_ATTEN_DB_11, 1,
+  //     0.47};  // STEPUP (adc range: 470-7660mV)
 
-    // start i2cdev library, dependency for esp-idf-lib libraries
-    ESP_ERROR_CHECK(i2cdev_init());
+  // Packet to be sent via LoRa to base station
+  LoraPacket packet;
 
-    // Tasks
-    xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
-                (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
-    xTaskCreate(&taskCurrent, "INA219 right aileron",
-                configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_VS, 2,
-                NULL);  // A1 open A0 bridged
-    xTaskCreate(&taskCurrent, "INA219 right rudder",
-                configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_GND, 2,
-                NULL);  // A1 bridged A0 open
-    xTaskCreate(&taskCurrent, "INA219 right elevator",
-                configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2,
-                NULL);  // A1 bridged A0 bridged
+  // start i2cdev library, dependency for esp-idf-lib libraries
+  ESP_ERROR_CHECK(i2cdev_init());
 
-    xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
-                configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL);
+  // Tasks
+  // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
+  //             (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
+  // xTaskCreate(&taskCurrent, "INA219 right aileron",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_VS, 2,
+  //             NULL);  // A1 open A0 bridged
+  // xTaskCreate(&taskCurrent, "INA219 right rudder",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_GND, 2,
+  //             NULL);  // A1 bridged A0 open
+  // xTaskCreate(&taskCurrent, "INA219 right elevator",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2,
+  //             NULL);  // A1 bridged A0 bridged
 
-    xTaskCreate(&taskRPM, "wheel rpm", configMINIMAL_STACK_SIZE * 8, NULL, 1,
-                NULL);
+  xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
+              configMINIMAL_STACK_SIZE * 8, (void *)&packet, 3, NULL);
 
-    xTaskCreate(&taskVoltage, "read battery voltage",
-                configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2,
-                NULL);  // GPIO36 (= VP)
-    xTaskCreate(&taskVoltage, "read regulator voltage",
-                configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2,
-                NULL);  // GPIO39 (= VN)
-    xTaskCreate(&taskVoltage, "read DAQ battery voltage",
-                configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2,
-                NULL);  // GPIO33
-    xTaskCreate(&taskVoltage, "read DAQ regulator voltage",
-                configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2,
-                NULL);  // GPIO34
+  // xTaskCreate(&taskRPM, "wheel rpm", configMINIMAL_STACK_SIZE * 8, NULL, 1,
+  //             NULL);
 
-    xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, NULL, 5, NULL);
+  // xTaskCreate(&taskVoltage, "read battery voltage",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2,
+  //             NULL);  // GPIO36 (= VP)
+  // xTaskCreate(&taskVoltage, "read regulator voltage",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2,
+  //             NULL);  // GPIO39 (= VN)
+  // xTaskCreate(&taskVoltage, "read DAQ battery voltage",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2,
+  //             NULL);  // GPIO33
+  // xTaskCreate(&taskVoltage, "read DAQ regulator voltage",
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2,
+  //             NULL);  // GPIO34
+
+  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&packet, 5, NULL);
 }
