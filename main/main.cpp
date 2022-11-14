@@ -61,7 +61,9 @@ struct params_taskVoltage_t {
 
 // LoRa packet struct
 typedef struct lora_packet{
-  int baro, temp;
+  uint8_t packetid;
+  int baro;
+  float temp;
 } LoraPacket;
 
 void taskCurrent(void *params_i2c_address) {
@@ -139,9 +141,10 @@ void taskLoRa_tx(void *pvParameters) {
   lora_disable_crc();
 
   while (1) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    ((LoraPacket*) pvParameters)->packetid++;
     lora_send_packet((uint8_t *)pvParameters, sizeof(LoraPacket));
-    printf("Packet sent...\n");
+    printf("Packet %d sent...\n", ((LoraPacket*) pvParameters)->packetid);
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
@@ -252,11 +255,16 @@ extern "C" void app_main(void) {
 
   // Packet to be sent via LoRa to base station
   LoraPacket packet;
+  packet.packetid = 0; // start packetid at zero
+  // why is this not working? packetid starts at 33
 
   // start i2cdev library, dependency for esp-idf-lib libraries
   ESP_ERROR_CHECK(i2cdev_init());
 
-  // Tasks
+  //
+  // Tasks --------------------------------------------------------------------
+
+  // INA219 current measuring tasks
   // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
   //             (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
   // xTaskCreate(&taskCurrent, "INA219 right aileron",
@@ -269,12 +277,7 @@ extern "C" void app_main(void) {
   //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2,
   //             NULL);  // A1 bridged A0 bridged
 
-  xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
-              configMINIMAL_STACK_SIZE * 8, (void *)&packet, 3, NULL);
-
-  // xTaskCreate(&taskRPM, "wheel rpm", configMINIMAL_STACK_SIZE * 8, NULL, 1,
-  //             NULL);
-
+  // Voltage measuring tasks
   // xTaskCreate(&taskVoltage, "read battery voltage",
   //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2,
   //             NULL);  // GPIO36 (= VP)
@@ -288,5 +291,14 @@ extern "C" void app_main(void) {
   //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2,
   //             NULL);  // GPIO34
 
-  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&packet, 5, NULL);
+  // Wheel RPM hall effect sensor task
+  // xTaskCreate(&taskRPM, "wheel rpm", configMINIMAL_STACK_SIZE * 8, NULL, 1,
+  //             NULL);
+
+  // BMP280 task (baro, temp)
+  xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
+              configMINIMAL_STACK_SIZE * 8, (void *)&packet, 5, NULL);
+
+  // LoRa telemetry task
+  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&packet, 3, NULL);
 }
