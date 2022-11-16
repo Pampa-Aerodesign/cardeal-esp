@@ -11,8 +11,10 @@
 #include <stdio.h>
 #include <string.h>
 
+// CardealESP config header
 #include "src/config.h"
 
+// FreeRTOS
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -23,6 +25,7 @@
 #include <sys/stat.h>
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
+#include "driver/sdmmc_host.h"
 
 // Current Sensor (INA219)
 #include "ina219.h"
@@ -65,6 +68,14 @@ typedef struct lora_packet{
   int baro;
   float temp;
 } LoraPacket;
+
+// SD card packet struct
+typedef struct sd_packet{
+  uint64_t timelog;
+  uint8_t packetid;
+  int baro;
+  float temp;
+} SDPacket;
 
 void taskCurrent(void *params_i2c_address) {
   ina219_t sensor;  // device struct
@@ -204,7 +215,7 @@ void taskBMP280(void *pvParameters) {
   }
 }
 
-void taskRPM() {
+void taskRPM(void *pvParameters) {
   // // int pulses = 0;
   // int rpm = 0;
   // // int pinNumber;
@@ -238,6 +249,169 @@ void taskRPM() {
   // }
 }
 
+void taskSD(void *sdpacket){
+  vTaskDelay(1500 / portTICK_PERIOD_MS);
+
+  esp_err_t ret;
+  static const char *TAG = "SD";
+
+  // Options for mounting the filesystem.
+  // If format_if_mount_failed is set to true, SD card will be partitioned and
+  // formatted in case when mounting fails.
+  esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+#ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
+    .format_if_mount_failed = true,
+#else
+    .format_if_mount_failed = false,
+#endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
+    .max_files = 5,
+    .allocation_unit_size = 16 * 1024
+  };
+  sdmmc_card_t *card;
+  ESP_LOGI(TAG, "Initializing SD card");
+
+  // Use settings defined above to initialize SD card and mount FAT filesystem.
+  // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
+  // Please check its source code and implement error recovery when developing
+  // production applications.
+
+  ESP_LOGI(TAG, "Using SPI peripheral");
+
+  // replaced host.slot everywhere with this line, probably not ideal
+  spi_host_device_t hostslot = SPI2_HOST;
+
+  sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+  host.max_freq_khz = MAX_FREQ_SPI_SDCARD;
+  spi_bus_config_t bus_cfg = {
+    .mosi_io_num = PIN_NUM_MOSI,
+    .miso_io_num = PIN_NUM_MISO,
+    .sclk_io_num = PIN_NUM_CLK,
+    .quadwp_io_num = -1,
+    .quadhd_io_num = -1,
+    .max_transfer_sz = 4000,
+  };
+  ret = spi_bus_initialize(hostslot, &bus_cfg, SPI_DMA_CHAN);
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to initialize bus.");
+    // return;
+  }
+
+  // This initializes the slot without card detect (CD) and write protect (WP) signals.
+  // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
+  sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+  slot_config.gpio_cs = PIN_NUM_CS;
+  slot_config.host_id = hostslot;
+
+  ret = esp_vfs_fat_sdspi_mount(MOUNT_POINT, &host, &slot_config, &mount_config, &card);
+
+  if (ret != ESP_OK) {
+    if (ret == ESP_FAIL) {
+      ESP_LOGE(TAG, "Failed to mount filesystem. "
+                "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+    } else {
+      ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+    }
+    // return;
+  }
+  ESP_LOGI(TAG, "Filesystem mounted");
+
+  vTaskDelay(10000 / portTICK_PERIOD_MS);
+
+  // Use POSIX and C standard library functions to work with files.
+  // First create a file.
+  ESP_LOGI(TAG, "Opening file");
+  FILE *f = fopen(MOUNT_POINT"/hello.txt", "w");
+  if (f == NULL) {
+    ESP_LOGE(TAG, "Failed to open file for writing");
+    // return;
+  }
+  else{
+    fprintf(f, "Hello %s!\n", card->cid.name);
+    fclose(f);
+    ESP_LOGI(TAG, "File written");
+  }
+
+  // Check if destination file exists before renaming
+  struct stat st;
+  if (stat(MOUNT_POINT"/foo.txt", &st) == 0) {
+    // Delete it if it exists
+    unlink(MOUNT_POINT"/foo.txt");
+  }
+
+  // Rename original file
+  ESP_LOGI(TAG, "Renaming file");
+  if (rename(MOUNT_POINT"/hello.txt", MOUNT_POINT"/foo.txt") != 0) {
+    ESP_LOGE(TAG, "Rename failed");
+    // return;
+  }
+
+  // Open renamed file for reading
+  ESP_LOGI(TAG, "Reading file");
+  f = fopen(MOUNT_POINT"/foo.txt", "r");
+  if (f == NULL) {
+    ESP_LOGE(TAG, "Failed to open file for reading");
+    // return;
+  }
+  char line[64];
+  fgets(line, sizeof(line), f);
+  fclose(f);
+  // strip newline
+  char *pos = strchr(line, '\n');
+  if (pos) {
+    *pos = '\0';
+  }
+  ESP_LOGI(TAG, "Read from file: '%s'", line);
+
+  // Write random number
+  int errf, errs, i, j = 0;
+  int64_t curtime, prevtime = 0;
+  int64_t decorrido = esp_timer_get_time();
+
+  f = fopen(MOUNT_POINT"/foo.txt", "a");  // Open file foo.txt in append mode
+  if (f == NULL) {
+    ESP_LOGE(TAG, "Failed to open file for writing!");  // Print error if failed to open
+    // return;
+  }
+
+  while(j < 30){
+    i = 0;
+
+    while(i < 1000){
+      curtime = esp_timer_get_time(); // Store current time
+
+      uint32_t rnd = esp_random();  // Generate random number
+      
+      fprintf(f, "Time: %lld\tNumber: %d\n", (curtime - prevtime), rnd); // Save number and timestamp
+      i++;
+      prevtime = curtime; // Previous time is now current time
+    }
+
+    errf = fflush(f);  // Close file
+    errs = fsync(fileno(f));
+
+    ESP_LOGI(TAG, "Write loop done: %d\t f: %d | s: %d", j, errf, errs);
+    j++;
+  }
+
+  fclose(f);  // Close file
+
+  // ESP_LOGI(TAG, "end %lld", (esp_timer_get_time() - decorrido));
+
+  // Close and unmount
+  // All done, unmount partition and disable SDMMC or SPI peripheral
+  esp_vfs_fat_sdcard_unmount(MOUNT_POINT, card);
+  ESP_LOGI(TAG, "Card unmounted");
+
+  //deinitialize the bus after all devices are removed
+  spi_bus_free(hostslot);
+
+  while(1){
+    printf("SD Task Finished");
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
 extern "C" void app_main(void) {
   // Task parameters
   // static const struct params_taskVoltage_t BatteryElec = {
@@ -254,9 +428,13 @@ extern "C" void app_main(void) {
   //     0.47};  // STEPUP (adc range: 470-7660mV)
 
   // Packet to be sent via LoRa to base station
-  LoraPacket packet;
-  packet.packetid = 0; // start packetid at zero
+  LoraPacket lorapacket;
+  lorapacket.packetid = 0; // start packetid at zero
   // why is this not working? packetid starts at 33
+
+  // Packet to be logged into SD card
+  SDPacket sdpacket;
+  sdpacket.packetid = 0;
 
   // start i2cdev library, dependency for esp-idf-lib libraries
   ESP_ERROR_CHECK(i2cdev_init());
@@ -297,8 +475,11 @@ extern "C" void app_main(void) {
 
   // BMP280 task (baro, temp)
   xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
-              configMINIMAL_STACK_SIZE * 8, (void *)&packet, 5, NULL);
+              configMINIMAL_STACK_SIZE * 8, (void *)&lorapacket, 5, NULL);
+
+  // SD logging task
+  xTaskCreatePinnedToCore(&taskSD, "write SD log", 8192, NULL, 3, NULL, 1);
 
   // LoRa telemetry task
-  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&packet, 3, NULL);
+  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&lorapacket, 3, NULL);
 }
