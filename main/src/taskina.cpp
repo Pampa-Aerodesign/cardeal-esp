@@ -1,0 +1,60 @@
+// Standard libraries
+#include <string.h>
+
+// CardealESP config header
+#include "include/config.h"
+
+// FreeRTOS
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+
+// Current Sensor (INA219)
+#include "ina219.h"
+#include "include/taskina.hpp"
+
+#include "include/sdlog.hpp"
+
+void taskCurrent(void *params_i2c_address) {
+  ina219_t sensor;  // device struct
+  memset(&sensor, 0, sizeof(ina219_t));
+
+  ESP_ERROR_CHECK(ina219_init_desc( &sensor,
+                 (int)params_i2c_address,
+                 I2C_PORT, SDA_GPIO,SCL_GPIO));  // if fails (invalid address), aborts execution
+  ESP_LOGI(INATAG, "Initializing INA219");
+
+  // attempt initialization 5 times
+  uint8_t attempt = 1;
+  while (ina219_init(&sensor) != ESP_OK && attempt <= 5) {
+    ESP_LOGE(INATAG,
+              "Failed to initialize 0x%x. Is the wiring connected? "
+              "(attempt %d/5)",
+              (int)params_i2c_address, attempt);
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    attempt++;
+  }
+  if (attempt > 5) {
+    ESP_LOGE(INATAG, "Failed to initialize 0x%x, suspending task",
+             (int)params_i2c_address);
+    vTaskSuspend(NULL);
+  }
+  // if successful, take readings
+  else {
+    ESP_LOGI(INATAG, "Configuring INA219");
+    ESP_ERROR_CHECK_WITHOUT_ABORT(
+        ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
+                          INA219_RES_12BIT_1S, INA219_RES_12BIT_1S,
+                          INA219_MODE_CONT_SHUNT_BUS));
+
+    float current;
+
+    ESP_LOGI(INATAG, "Starting the loop");
+    while (1) {
+      ina219_get_current(&sensor, &current);
+      printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
+             (int)params_i2c_address);
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+    }
+  }
+}

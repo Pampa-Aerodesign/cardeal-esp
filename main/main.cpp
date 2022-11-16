@@ -32,6 +32,7 @@
 
 // Current Sensor (INA219)
 #include "ina219.h"
+#include "include/taskina.hpp"
 
 // Voltage Measurement (ADC)
 #include "include/VoltageSensor.hpp"
@@ -66,51 +67,6 @@ struct params_taskVoltage_t {
 //     // xQueueOverwriteFromISR(interputQueue, &pulses, NULL);
 //     vTaskDelay(50 / portTICK_PERIOD_MS);
 // }
-
-void taskCurrent(void *params_i2c_address) {
-  ina219_t sensor;  // device struct
-  memset(&sensor, 0, sizeof(ina219_t));
-
-  ESP_ERROR_CHECK(ina219_init_desc(
-      &sensor, (int)params_i2c_address, I2C_PORT, SDA_GPIO,
-      SCL_GPIO));  // if fails (invalid address), aborts execution
-  ESP_LOGI("INA219", "Initializing INA219");
-
-  // attempt initialization 5 times
-  uint8_t attempt = 1;
-  while (ina219_init(&sensor) != ESP_OK && attempt <= 5) {
-    ESP_LOGE("INA219",
-              "Failed to initialize 0x%x. Is the wiring connected? (attempt "
-              "%d/5)",
-              (int)params_i2c_address, attempt);
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    attempt++;
-  }
-  if (attempt > 5) {
-    ESP_LOGE("INA219", "Failed to initialize 0x%x, suspending task",
-             (int)params_i2c_address);
-    vTaskSuspend(NULL);
-  }
-  // if successful, take readings
-  else {
-    ESP_LOGI("INA219", "Configuring INA219");
-    ESP_ERROR_CHECK_WITHOUT_ABORT(
-        ina219_configure(&sensor, INA219_BUS_RANGE_16V, INA219_GAIN_0_125,
-                          INA219_RES_12BIT_1S, INA219_RES_12BIT_1S,
-                          INA219_MODE_CONT_SHUNT_BUS));
-
-    float current;
-
-    ESP_LOGI("INA219", "Starting the loop");
-    while (1) {
-      ina219_get_current(&sensor, &current);
-      printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
-             (int)params_i2c_address);
-
-      vTaskDelay(500 / portTICK_PERIOD_MS);
-    }
-  }
-}
 
 void taskVoltage(void *pvParameters) {
   params_taskVoltage_t *params = (params_taskVoltage_t *)pvParameters;
@@ -189,17 +145,14 @@ extern "C" void app_main(void) {
   // Tasks --------------------------------------------------------------------
 
   // INA219 current measuring tasks
-  // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
-  //             (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
-  // xTaskCreate(&taskCurrent, "INA219 right aileron",
-  //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_GND_VS, 2,
-  //             NULL);  // A1 open A0 bridged
-  // xTaskCreate(&taskCurrent, "INA219 right rudder",
-  //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_GND, 2,
-  //             NULL);  // A1 bridged A0 open
-  // xTaskCreate(&taskCurrent, "INA219 right elevator",
-  //             configMINIMAL_STACK_SIZE * 8, (void *)INA219_ADDR_VS_VS, 2,
-  //             NULL);  // A1 bridged A0 bridged
+  xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
+             (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
+  xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
+             (void *)INA219_ADDR_GND_VS, 2, NULL);  // A1 open A0 bridged
+  xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
+             (void *)INA219_ADDR_VS_GND, 2, NULL);  // A1 bridged A0 open
+  xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
+             (void *)INA219_ADDR_VS_VS, 2, NULL);  // A1 bridged A0 bridged
 
   // Voltage measuring tasks
   // xTaskCreate(&taskVoltage, "read battery voltage",
@@ -220,8 +173,8 @@ extern "C" void app_main(void) {
   //             NULL);
 
   // BMP280 task (baro, temp)
-  xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
-              configMINIMAL_STACK_SIZE * 8, (void *)&datapacket, 2, NULL);
+  xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,
+             (void *)&datapacket, 2, NULL);
 
   // SD logging task
   xTaskCreatePinnedToCore(&taskSD, "write SD log", 8192, (void *)&datapacket, 3, NULL, 1);

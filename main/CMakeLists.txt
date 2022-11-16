@@ -5,4 +5,5 @@ idf_component_register(SRCS "main.cpp"
                             "src/telemetry.cpp"
                             "src/sdlog.cpp"
                             "src/taskbmp.cpp"
+                            "src/taskina.cpp"
                        INCLUDE_DIRS ".")
