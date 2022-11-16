@@ -1,4 +1,7 @@
 set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../components)
 
-idf_component_register(SRCS "main.cpp" "src/VoltageSensor.cpp"
-                    INCLUDE_DIRS ".")
+idf_component_register(SRCS "main.cpp"
+                            "src/VoltageSensor.cpp"
+                            "src/telemetry.cpp"
+                            "src/sdlog.cpp"
+                       INCLUDE_DIRS ".")
