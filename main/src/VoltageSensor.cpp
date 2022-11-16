@@ -57,3 +57,20 @@ int VoltageSensor::read_mV(int number_of_samples /*= 1*/) {
         return measured_mV;
     }
 }
+
+void taskVoltage(void *pvParameters) {
+  params_taskVoltage_t *params = (params_taskVoltage_t *)pvParameters;
+
+  VoltageSensor sensor;
+
+  sensor.setup(params->adc1_channel, params->adc_atten_db, params->R1,
+               params->R2);
+  sensor.calibLog();
+
+  while (true) {
+    int value = sensor.read_mV(50);
+    printf("Voltage: %d mV, multiplier: %f\n", value,
+           (params->R1 + params->R2) / params->R2);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}

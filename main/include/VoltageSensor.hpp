@@ -4,6 +4,12 @@
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 
+struct params_taskVoltage_t {
+  adc1_channel_t adc1_channel;
+  adc_atten_t adc_atten_db;
+  float R1, R2;  // if there's no resistors, both 0
+};
+
 class VoltageSensor {
    private:
     adc_unit_t m_unit = ADC_UNIT_1;
@@ -37,5 +43,7 @@ class VoltageSensor {
     void calibLog();
     int read_mV(int number_of_samples = 1);
 };
+
+void taskVoltage(void *pvParameters);
 
 #endif  // CARDEAL_VOLTAGE_H_
