@@ -8,6 +8,10 @@
 
 /* Settings */
 
+// Logging
+#define FILENAME "log"
+#define FILETYPE "csv"
+
 // SD Card
 #define USE_SPI_MODE
 #define CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED

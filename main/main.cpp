@@ -10,6 +10,7 @@
 /* clang-format off */
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 // CardealESP config header
 #include "src/config.h"
@@ -26,6 +27,8 @@
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
 #include "driver/sdmmc_host.h"
+
+#include "src/sdlog.hpp"
 
 // Current Sensor (INA219)
 #include "ina219.h"
@@ -68,14 +71,6 @@ typedef struct lora_packet{
   int baro;
   float temp;
 } LoraPacket;
-
-// SD card packet struct
-typedef struct sd_packet{
-  uint64_t timelog;
-  uint8_t packetid;
-  int baro;
-  float temp;
-} SDPacket;
 
 void taskCurrent(void *params_i2c_address) {
   ina219_t sensor;  // device struct
@@ -152,9 +147,14 @@ void taskLoRa_tx(void *pvParameters) {
   lora_disable_crc();
 
   while (1) {
-    ((LoraPacket*) pvParameters)->packetid++;
-    lora_send_packet((uint8_t *)pvParameters, sizeof(LoraPacket));
-    printf("Packet %d sent...\n", ((LoraPacket*) pvParameters)->packetid);
+    // Build LoRa Packet
+    LoraPacket lorapacket;
+    lorapacket.packetid = ((DataPacket *)pvParameters)->packetid;
+    lorapacket.baro = ((DataPacket *)pvParameters)->baro;
+    lorapacket.temp = ((DataPacket *)pvParameters)->temp;
+
+    lora_send_packet((uint8_t *)&lorapacket, sizeof(LoraPacket));
+    printf("Packet %d sent...\n", lorapacket.packetid);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
@@ -177,7 +177,7 @@ void taskBMP280(void *pvParameters) {
   do {
     ESP_LOGE("BMP280", "Failed to initialize (attempt %d/5)", attempt);
     attempt++;
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(5000));
   } while (bmp280_init(&dev, &params) != ESP_OK && attempt < 5);
 
   // suspend task after 5 attempts
@@ -197,21 +197,22 @@ void taskBMP280(void *pvParameters) {
     // reading temp, pressure and humidity (if available)
     if(bmp280_read_float(&dev, &temperature, &pressure, &humidity) != ESP_OK){
       printf("Temperature/pressure reading failed\n");
+      vTaskDelay(pdMS_TO_TICKS(1000));
       continue;
     }
 
     // printing readings
-    printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
-    if (bme280p)  // print humidity if available
-      printf(", Humidity: %.2f\n", humidity);
-    else
-      printf("\n");
+    // printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
+    // if (bme280p)  // print humidity if available
+    //   printf(", Humidity: %.2f\n", humidity);
+    // else
+    //   printf("\n");
 
     // update lora packet values
-    ((LoraPacket*) pvParameters)->baro = pressure;
-    ((LoraPacket*) pvParameters)->temp = temperature;
+    ((DataPacket*) pvParameters)->baro = pressure;
+    ((DataPacket*) pvParameters)->temp = temperature;
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
@@ -249,7 +250,7 @@ void taskRPM(void *pvParameters) {
   // }
 }
 
-void taskSD(void *sdpacket){
+void taskSD(void *datapacket){
   vTaskDelay(1500 / portTICK_PERIOD_MS);
 
   esp_err_t ret;
@@ -265,7 +266,7 @@ void taskSD(void *sdpacket){
     .format_if_mount_failed = false,
 #endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
     .max_files = 5,
-    .allocation_unit_size = 16 * 1024
+    .allocation_unit_size = 512 //16 * 1024
   };
   sdmmc_card_t *card;
   ESP_LOGI(TAG, "Initializing SD card");
@@ -314,102 +315,103 @@ void taskSD(void *sdpacket){
     }
     // return;
   }
+
   ESP_LOGI(TAG, "Filesystem mounted");
+  // SD card finished initializing
 
-  vTaskDelay(10000 / portTICK_PERIOD_MS);
+  // check for "start logging" signal (aux3 on rx, GPIO 16)
+  gpio_set_direction(PIN_SDLOG, GPIO_MODE_INPUT);
+  gpio_pullup_en(PIN_SDLOG);
 
-  // Use POSIX and C standard library functions to work with files.
-  // First create a file.
-  ESP_LOGI(TAG, "Opening file");
-  FILE *f = fopen(MOUNT_POINT"/hello.txt", "w");
-  if (f == NULL) {
-    ESP_LOGE(TAG, "Failed to open file for writing");
-    // return;
-  }
-  else{
-    fprintf(f, "Hello %s!\n", card->cid.name);
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
-  }
+  int attempt = 1;
+  std::string strattempt;
+  char fname[32] = "\0";
+  FILE* file = NULL;
 
-  // Check if destination file exists before renaming
-  struct stat st;
-  if (stat(MOUNT_POINT"/foo.txt", &st) == 0) {
-    // Delete it if it exists
-    unlink(MOUNT_POINT"/foo.txt");
-  }
+  bool logging = false; // flag to check if it file was already created
+  ((DataPacket*) datapacket)->packetid = 0; // start packetid at zero
 
-  // Rename original file
-  ESP_LOGI(TAG, "Renaming file");
-  if (rename(MOUNT_POINT"/hello.txt", MOUNT_POINT"/foo.txt") != 0) {
-    ESP_LOGE(TAG, "Rename failed");
-    // return;
-  }
+  ESP_LOGI(TAG, "Starting SD loop");
 
-  // Open renamed file for reading
-  ESP_LOGI(TAG, "Reading file");
-  f = fopen(MOUNT_POINT"/foo.txt", "r");
-  if (f == NULL) {
-    ESP_LOGE(TAG, "Failed to open file for reading");
-    // return;
-  }
-  char line[64];
-  fgets(line, sizeof(line), f);
-  fclose(f);
-  // strip newline
-  char *pos = strchr(line, '\n');
-  if (pos) {
-    *pos = '\0';
-  }
-  ESP_LOGI(TAG, "Read from file: '%s'", line);
+  while(1){
+    // start logging once the signal has been received from the RX
+    if(!gpio_get_level(PIN_SDLOG)){
+      // try to open file in read mode. if it opens, the file already exists,
+      // increment number in filename and try to open again.
+      // when it fails, that means the file does not exist, so open it
+      // in write mode to create the file and start logging
+      if(!logging){
+        do{
+          fclose(file);
+          strcpy(fname, MOUNT_POINT "/" FILENAME);
+          strattempt = std::to_string(attempt);
+          strcat(fname, strattempt.c_str());
+          strcat(fname, "." FILETYPE);
+          file = fopen(fname, "r");
+          attempt++;
+        } while(file != NULL);
 
-  // Write random number
-  int errf, errs, i, j = 0;
-  int64_t curtime, prevtime = 0;
-  int64_t decorrido = esp_timer_get_time();
+        ESP_LOGI(TAG, "Attempting to create file %s", fname);
 
-  f = fopen(MOUNT_POINT"/foo.txt", "a");  // Open file foo.txt in append mode
-  if (f == NULL) {
-    ESP_LOGE(TAG, "Failed to open file for writing!");  // Print error if failed to open
-    // return;
-  }
+        // open file in write mode
+        if(file == NULL){
+          file = fopen(fname, "w");
 
-  while(j < 30){
-    i = 0;
+          // not elegant but whatever, none of this is so far
+          if(file == NULL){
+            ESP_LOGE(TAG, "File %s failed to open. Killing task", fname);
+            vTaskSuspend(NULL);
+          }
 
-    while(i < 1000){
-      curtime = esp_timer_get_time(); // Store current time
+          ESP_LOGI(TAG, "File %s created", fname);
+          // logWriteHeader(&file); // undefined reference ???
+          fprintf(file, "PacketID,Timestamp,Baro,Temp\n");
+        }
 
-      uint32_t rnd = esp_random();  // Generate random number
+        logging = true;
+        ((DataPacket*) datapacket)->packetid = 0; // start packetid at zero
+        ESP_LOGI(TAG, "Created file %s, starting log", fname);
+      }
       
-      fprintf(f, "Time: %lld\tNumber: %d\n", (curtime - prevtime), rnd); // Save number and timestamp
-      i++;
-      prevtime = curtime; // Previous time is now current time
+
+      // write packet to SD card
+      // get timestamp in miliseconds
+      ((DataPacket*) datapacket)->timestamp = esp_timer_get_time()/1000;
+      // logWrite(&file, (SDPacket*) sdpacket); // undefined reference ???
+      fprintf(file, "%d,", ((DataPacket*) datapacket)->packetid);
+      fprintf(file, "%lld,", ((DataPacket*) datapacket)->timestamp);
+      fprintf(file, "%d,", ((DataPacket*) datapacket)->baro);
+      fprintf(file, "%lf\n", ((DataPacket*) datapacket)->temp);
+
+      // log data at 10 Hz (100 ms interval)
+      // vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+    else{
+      // check if a file is open and close it
+      if(file != NULL){
+        fclose(file);
+        file = NULL;
+        ((DataPacket*) datapacket)->packetid = 0; // reset packetid to zero
+        logging = false;
+        ESP_LOGI(TAG, "Not logging");
+      }
+
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      // keep looping every second checking for logging signal
     }
 
-    errf = fflush(f);  // Close file
-    errs = fsync(fileno(f));
-
-    ESP_LOGI(TAG, "Write loop done: %d\t f: %d | s: %d", j, errf, errs);
-    j++;
+    ((DataPacket*) datapacket)->packetid++; // increment packetid
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
-
-  fclose(f);  // Close file
-
-  // ESP_LOGI(TAG, "end %lld", (esp_timer_get_time() - decorrido));
 
   // Close and unmount
   // All done, unmount partition and disable SDMMC or SPI peripheral
   esp_vfs_fat_sdcard_unmount(MOUNT_POINT, card);
   ESP_LOGI(TAG, "Card unmounted");
-
+#ifdef USE_SPI_MODE
   //deinitialize the bus after all devices are removed
   spi_bus_free(hostslot);
-
-  while(1){
-    printf("SD Task Finished");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
+#endif
 }
 
 extern "C" void app_main(void) {
@@ -427,14 +429,9 @@ extern "C" void app_main(void) {
   //     ADC1_CHANNEL_6, ADC_ATTEN_DB_11, 1,
   //     0.47};  // STEPUP (adc range: 470-7660mV)
 
-  // Packet to be sent via LoRa to base station
-  LoraPacket lorapacket;
-  lorapacket.packetid = 0; // start packetid at zero
-  // why is this not working? packetid starts at 33
-
   // Packet to be logged into SD card
-  SDPacket sdpacket;
-  sdpacket.packetid = 0;
+  DataPacket datapacket;
+  datapacket.packetid = 0;
 
   // start i2cdev library, dependency for esp-idf-lib libraries
   ESP_ERROR_CHECK(i2cdev_init());
@@ -475,11 +472,11 @@ extern "C" void app_main(void) {
 
   // BMP280 task (baro, temp)
   xTaskCreate(&taskBMP280, "BMP280 read pressure temp",
-              configMINIMAL_STACK_SIZE * 8, (void *)&lorapacket, 5, NULL);
+              configMINIMAL_STACK_SIZE * 8, (void *)&datapacket, 2, NULL);
 
   // SD logging task
-  xTaskCreatePinnedToCore(&taskSD, "write SD log", 8192, NULL, 3, NULL, 1);
+  xTaskCreatePinnedToCore(&taskSD, "write SD log", 8192, (void *)&datapacket, 3, NULL, 1);
 
   // LoRa telemetry task
-  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&lorapacket, 3, NULL);
+  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&datapacket, 4, NULL);
 }
