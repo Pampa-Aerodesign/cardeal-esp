@@ -4,4 +4,5 @@ idf_component_register(SRCS "main.cpp"
                             "src/VoltageSensor.cpp"
                             "src/telemetry.cpp"
                             "src/sdlog.cpp"
+                            "src/taskbmp.cpp"
                        INCLUDE_DIRS ".")
