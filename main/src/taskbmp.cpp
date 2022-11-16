@@ -2,7 +2,7 @@
 #include <string.h>
 
 // CardealESP config header
-#include "src/config.h"
+#include "include/config.h"
 
 // FreeRTOS
 #include "esp_log.h"
@@ -10,9 +10,9 @@
 
 // Temperature Sensor (BMP280)
 #include "bmp280.h"
-#include "taskbmp.hpp"
+#include "include/taskbmp.hpp"
 
-#include "src/sdlog.hpp"
+#include "include/sdlog.hpp"
 
 void taskBMP280(void *pvParameters) {
   // setup

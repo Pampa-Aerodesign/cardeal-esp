@@ -1,6 +1,8 @@
-#include "VoltageSensor.hpp"
+// CardealESP config header
+#include "include/config.h"
 
-#include "config.h"
+#include "include/VoltageSensor.hpp"
+
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 

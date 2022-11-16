@@ -13,7 +13,7 @@
 #include <string>
 
 // CardealESP config header
-#include "src/config.h"
+#include "include/config.h"
 
 // FreeRTOS
 #include "esp_log.h"
@@ -28,22 +28,22 @@
 #include "sdmmc_cmd.h"
 #include "driver/sdmmc_host.h"
 
-#include "src/sdlog.hpp"
+#include "include/sdlog.hpp"
 
 // Current Sensor (INA219)
 #include "ina219.h"
 
 // Voltage Measurement (ADC)
-#include "src/VoltageSensor.hpp"
+#include "include/VoltageSensor.hpp"
 #include "driver/adc.h"
 
 // Temperature Sensor (BMP280)
 #include "bmp280.h"
-#include "src/taskbmp.hpp"
+#include "include/taskbmp.hpp"
 
 // LoRa communication via SX1276 chips
 #include "lora.h"
-#include "src/telemetry.hpp"
+#include "include/telemetry.hpp"
 
 struct params_taskVoltage_t {
   adc1_channel_t adc1_channel;

@@ -4,7 +4,7 @@
 #include <string>
 
 // CardealESP config header
-#include "src/config.h"
+#include "include/config.h"
 
 // FreeRTOS
 #include "esp_log.h"
@@ -17,7 +17,7 @@
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
 #include "driver/sdmmc_host.h"
-#include "sdlog.hpp"
+#include "include/sdlog.hpp"
 
 void logWriteHeader(FILE* file){
   fprintf(file, "PacketID,Timestamp,Baro,Temp\n");

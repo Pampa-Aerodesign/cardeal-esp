@@ -1,16 +1,16 @@
 // CardealESP config header
-#include "src/config.h"
+#include "include/config.h"
 
 // FreeRTOS
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 
 // DataPacket
-#include "src/sdlog.hpp"
+#include "include/sdlog.hpp"
 
 // LoRa communication via SX1276 chips
 #include "lora.h"
-#include "telemetry.hpp"
+#include "include/telemetry.hpp"
 
 void taskLoRa_tx(void *pvParameters){
   lora_init();
