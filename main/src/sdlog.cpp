@@ -22,23 +22,23 @@
 #include "include/sdlog.hpp"
 
 // Write CSV file header
-void logWriteHeader(FILE** file){
-  fprintf(*file, "PacketID,Timestamp,Baro,Temp\n");
+void logWriteHeader(FILE* file){
+  fprintf(file, "PacketID,Timestamp,Baro,Temp\n");
 }
 
 // Write data into CSV file
-void logWrite(FILE** file, DataPacket* datapacket){
+void logWrite(FILE* file, DataPacket* datapacket){
   // get timestamp in miliseconds
   ((DataPacket *)datapacket)->timestamp = esp_timer_get_time()/1000;
 
   // Retrieve data from DataPacket
-  fprintf(*file, "%d,", datapacket->packetid);
-  fprintf(*file, "%lld,", datapacket->timestamp);
-  fprintf(*file, "%d,", datapacket->baro);
-  fprintf(*file, "%lf", datapacket->temp);
+  fprintf(file, "%d,", datapacket->packetid);
+  fprintf(file, "%lld,", datapacket->timestamp);
+  fprintf(file, "%d,", datapacket->baro);
+  fprintf(file, "%lf", datapacket->temp);
 
   // Print CRLF
-  fprintf(*file, "\n");
+  fprintf(file, "\n");
 }
 
 // Initialize SPI and mount SD card
@@ -178,7 +178,7 @@ void taskSD(void *datapacket){
           }
 
           // Write header in CSV file
-          logWriteHeader(&file);
+          logWriteHeader(file);
           ESP_LOGI(SDTAG, "File %s created", fname);
         }
 
@@ -188,7 +188,7 @@ void taskSD(void *datapacket){
       }
       
       // write packet to SD card
-      logWrite(&file, (DataPacket *)datapacket);
+      logWrite(file, (DataPacket *)datapacket);
     }
     else{ // Stop logging (GPIO16 == HIGH)
       // check if a file is open and close it

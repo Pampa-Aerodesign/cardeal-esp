@@ -11,6 +11,6 @@ typedef struct data_packet_t{
   float temp;
 } DataPacket;
 
-void logWriteHeader(FILE** file);
-void logWrite(FILE** file, DataPacket* datapacket);
+void logWriteHeader(FILE* file);
+void logWrite(FILE* file, DataPacket* datapacket);
 void taskSD(void *datapacket);
