@@ -4,6 +4,8 @@
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 
+#define VOLTTAG "VOLT"
+
 struct params_taskVoltage_t {
   adc1_channel_t adc1_channel;
   adc_atten_t adc_atten_db;

@@ -31,15 +31,15 @@
 
 // Current Sensor (INA219)
 #include "ina219.h"
-#include "include/taskina.hpp"
+#include "include/ina219.hpp"
 
 // Voltage Measurement (ADC)
-#include "include/VoltageSensor.hpp"
+#include "include/voltage.hpp"
 #include "driver/adc.h"
 
 // Temperature Sensor (BMP280)
 #include "bmp280.h"
-#include "include/taskbmp.hpp"
+#include "include/bmp280.hpp"
 
 // LoRa communication via SX1276 chips
 #include "lora.h"
