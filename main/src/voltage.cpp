@@ -1,8 +1,13 @@
-#include "VoltageSensor.hpp"
+// CardealESP config header
+#include "include/config.hpp"
 
-#include "config.h"
+// Voltage Measurement (ADC)
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "include/voltage.hpp"
+
+//DataPacket
+#include "include/sdlog.hpp"
 
 void VoltageSensor::setup(adc1_channel_t ADC1_CHANNEL_num,
                           adc_atten_t ADC_ATTEN_DB_num, float R1 /*= 0*/,
@@ -54,4 +59,22 @@ int VoltageSensor::read_mV(int number_of_samples /*= 1*/) {
     } else {
         return measured_mV;
     }
+}
+
+// Voltage reading task
+void taskVoltage(void *pvParameters) {
+  params_taskVoltage_t *params = (params_taskVoltage_t *)pvParameters;
+
+  VoltageSensor sensor;
+
+  sensor.setup(params->adc1_channel, params->adc_atten_db, params->R1,
+               params->R2);
+  sensor.calibLog();
+
+  while (true) {
+    int value = sensor.read_mV(50);
+    printf("Voltage: %d mV, multiplier: %f\n", value,
+           (params->R1 + params->R2) / params->R2);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 }

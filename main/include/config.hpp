@@ -18,7 +18,14 @@
 #define MOUNT_POINT "/sdcard"
 #define MAX_FREQ_SPI_SDCARD 10000  // in kHz
 // DMA channel to be used by the SPI peripheral
-#define SPI_DMA_CHAN    1
+#define SPI_DMA_CHAN 1
+
+// LoRa Transmission
+#define LORA_TX_POWER 17    // Range: 2-17
+#define LORA_SPREAD_FACT 8  // Range: 6-12
+#define LORA_CODING_RATE 5  // Range: 5-8
+#define LORA_PREAMBLE_LEN 8 // long
+#define LORA_SYNC_WORD 0x12 // int
 
 /* Pinouts */
 

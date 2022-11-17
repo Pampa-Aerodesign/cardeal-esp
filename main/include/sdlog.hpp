@@ -1,6 +1,8 @@
 #pragma once
 #include <stdio.h>
 
+#define SDTAG "SD"
+
 // full data structure
 typedef struct data_packet_t{
   int64_t timestamp;
@@ -9,5 +11,6 @@ typedef struct data_packet_t{
   float temp;
 } DataPacket;
 
-void logWriteHeader(FILE** file);
-void logWrite(FILE** file, DataPacket* sdpacket);
+void logWriteHeader(FILE* file);
+void logWrite(FILE* file, DataPacket* datapacket);
+void taskSD(void *datapacket);
