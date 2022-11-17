@@ -1,8 +1,10 @@
+// This file contains functions and tasks related to the INA219 current sensor
+
 // Standard libraries
 #include <string.h>
 
 // CardealESP config header
-#include "include/config.h"
+#include "include/config.hpp"
 
 // FreeRTOS
 #include "esp_log.h"
@@ -12,8 +14,10 @@
 #include "ina219.h"
 #include "include/ina219.hpp"
 
+// DataPacket
 #include "include/sdlog.hpp"
 
+// INA219 Current Sensor task
 void taskCurrent(void *params_i2c_address) {
   ina219_t sensor;  // device struct
   memset(&sensor, 0, sizeof(ina219_t));

@@ -1,10 +1,12 @@
+// This file contains functions and tasks related to the SD Card module
+
 // Standard libraries
 #include <stdio.h>
 #include <string.h>
 #include <string>
 
 // CardealESP config header
-#include "include/config.h"
+#include "include/config.hpp"
 
 // FreeRTOS
 #include "esp_log.h"
@@ -19,17 +21,27 @@
 #include "driver/sdmmc_host.h"
 #include "include/sdlog.hpp"
 
-void logWriteHeader(FILE* file){
-  fprintf(file, "PacketID,Timestamp,Baro,Temp\n");
+// Write CSV file header
+void logWriteHeader(FILE** file){
+  fprintf(*file, "PacketID,Timestamp,Baro,Temp\n");
 }
 
-void logWrite(FILE* file, DataPacket* datapacket){
-  fprintf(file, "%d,", datapacket->packetid);
-  fprintf(file, "%lld,", datapacket->timestamp);
-  fprintf(file, "%d,", datapacket->baro);
-  fprintf(file, "%lf\n", datapacket->temp);
+// Write data into CSV file
+void logWrite(FILE** file, DataPacket* datapacket){
+  // get timestamp in miliseconds
+  ((DataPacket *)datapacket)->timestamp = esp_timer_get_time()/1000;
+
+  // Retrieve data from DataPacket
+  fprintf(*file, "%d,", datapacket->packetid);
+  fprintf(*file, "%lld,", datapacket->timestamp);
+  fprintf(*file, "%d,", datapacket->baro);
+  fprintf(*file, "%lf", datapacket->temp);
+
+  // Print CRLF
+  fprintf(*file, "\n");
 }
 
+// Initialize SPI and mount SD card
 sdmmc_card_t* sd_card_init(void){
   // ESP LOG error code and tag
   esp_err_t ret;
@@ -47,7 +59,6 @@ sdmmc_card_t* sd_card_init(void){
     .allocation_unit_size = 512 //16 * 1024
   };
   sdmmc_card_t *card;
-  ESP_LOGI(SDTAG, "Initializing SD card");
 
   // Use settings defined above to initialize SD card and mount FAT filesystem.
   // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -100,6 +111,7 @@ sdmmc_card_t* sd_card_init(void){
   return card;
 }
 
+// Unmount SD card and deinitialize SPI
 void sd_card_unmount(sdmmc_card_t* card){
   // replaced host.slot everywhere with this line, probably not ideal
   spi_host_device_t hostslot = SPI2_HOST;
@@ -109,20 +121,21 @@ void sd_card_unmount(sdmmc_card_t* card){
   esp_vfs_fat_sdcard_unmount(MOUNT_POINT, card);
   ESP_LOGI(SDTAG, "Card unmounted");
 #ifdef USE_SPI_MODE
-  //deinitialize the bus after all devices are removed
+  // deinitialize the bus after all devices are removed
   spi_bus_free(hostslot);
 #endif
 }
 
+// SD Card logging task
 void taskSD(void *datapacket){
-  vTaskDelay(pdMS_TO_TICKS(1000));
-
+  ESP_LOGI(SDTAG, "Initializing SD card");
   sdmmc_card_t* card = sd_card_init();
 
   // check for "start logging" signal (aux3 on rx, GPIO 16)
   gpio_set_direction(PIN_SDLOG, GPIO_MODE_INPUT);
   gpio_pullup_en(PIN_SDLOG);
 
+  // File name
   int attempt = 1;
   std::string strattempt;
   char fname[32] = "\0";
@@ -131,7 +144,7 @@ void taskSD(void *datapacket){
   bool logging = false; // flag to check if it file was already created
   ((DataPacket*) datapacket)->packetid = 0; // start packetid at zero
 
-  ESP_LOGI(SDTAG, "Starting SD loop");
+  ESP_LOGI(SDTAG, "Starting the loop");
 
   while(1){
     // start logging once the signal has been received from the RX
@@ -160,49 +173,41 @@ void taskSD(void *datapacket){
           // not elegant but whatever, none of this is so far
           if(file == NULL){
             ESP_LOGE(SDTAG, "File %s failed to open. Killing task", fname);
+            sd_card_unmount(card);
             vTaskSuspend(NULL);
           }
 
+          // Write header in CSV file
+          logWriteHeader(&file);
           ESP_LOGI(SDTAG, "File %s created", fname);
-          // logWriteHeader(&file); // undefined reference ???
-          fprintf(file, "PacketID,Timestamp,Baro,Temp\n");
         }
 
         logging = true;
-        ((DataPacket*) datapacket)->packetid = 0; // start packetid at zero
+        ((DataPacket *)datapacket)->packetid = 0; // start packetid at zero
         ESP_LOGI(SDTAG, "Created file %s, starting log", fname);
       }
       
-
       // write packet to SD card
-      // get timestamp in miliseconds
-      ((DataPacket*) datapacket)->timestamp = esp_timer_get_time()/1000;
-      // logWrite(&file, (SDPacket*) sdpacket); // undefined reference ???
-      fprintf(file, "%d,", ((DataPacket*) datapacket)->packetid);
-      fprintf(file, "%lld,", ((DataPacket*) datapacket)->timestamp);
-      fprintf(file, "%d,", ((DataPacket*) datapacket)->baro);
-      fprintf(file, "%lf\n", ((DataPacket*) datapacket)->temp);
-
-      // log data at 10 Hz (100 ms interval)
-      // vTaskDelay(100 / portTICK_PERIOD_MS);
+      logWrite(&file, (DataPacket *)datapacket);
     }
-    else{
+    else{ // Stop logging (GPIO16 == HIGH)
       // check if a file is open and close it
       if(file != NULL){
         fclose(file);
         file = NULL;
         ((DataPacket*) datapacket)->packetid = 0; // reset packetid to zero
         logging = false;
-        ESP_LOGI(SDTAG, "Not logging");
+        ESP_LOGI(SDTAG, "Logging stopped.");
       }
 
-      vTaskDelay(pdMS_TO_TICKS(1000));
       // keep looping every second checking for logging signal
+      vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
     ((DataPacket*) datapacket)->packetid++; // increment packetid
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(100)); // Refresh rate for logging (100 ms)
   }
 
+  // shouldn't ever reach this point, not sure if that's bad or not
   sd_card_unmount(card);
 }

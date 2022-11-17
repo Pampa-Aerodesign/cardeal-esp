@@ -1,10 +1,11 @@
 /* Cardeal ESP
 
-   This is an embedded system developed for Pampa Aerodesign's aircraft.
+  This is an embedded system developed for Pampa Aerodesign's aircraft.
 
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
+  Unless required by applicable law or agreed to in writing, this
+  software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+  CONDITIONS OF ANY KIND, either express or implied.
+
 */
 
 /* clang-format off */
@@ -13,7 +14,7 @@
 #include <string>
 
 // CardealESP config header
-#include "include/config.h"
+#include "include/config.hpp"
 
 // FreeRTOS
 #include "esp_log.h"
@@ -21,7 +22,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-// SD Card
+// SD Card (CATALEX MicroSD module)
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "esp_vfs_fat.h"
@@ -34,18 +35,20 @@
 #include "include/ina219.hpp"
 
 // Voltage Measurement (ADC)
-#include "include/voltage.hpp"
 #include "driver/adc.h"
+#include "include/voltage.hpp"
 
 // Temperature Sensor (BMP280)
 #include "bmp280.h"
 #include "include/bmp280.hpp"
 
-// LoRa communication via SX1276 chips
+// LoRa communication (SX1276)
 #include "lora.h"
 #include "include/telemetry.hpp"
 
 extern "C" void app_main(void) {
+  ESP_LOGI("MAIN", "Starting CardealESP");
+  
   // Task parameters ----------------------------------------------------------
   // BAT_ELEC (adc range: 470-7660mV)
   static const struct params_taskVoltage_t BatteryElec = {
