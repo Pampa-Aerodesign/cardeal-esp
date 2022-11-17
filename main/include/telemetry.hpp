@@ -5,6 +5,7 @@
 // LoRa packet struct
 typedef struct lora_packet{
   uint8_t packetid;
+  uint8_t logging;
   int baro;
   float temp;
 } LoraPacket;

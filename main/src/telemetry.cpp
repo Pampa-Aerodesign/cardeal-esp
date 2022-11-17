@@ -37,6 +37,7 @@ void taskLoRa_tx(void *pvParameters){
     lorapacket.packetid = ((DataPacket *)pvParameters)->packetid;
     lorapacket.baro = ((DataPacket *)pvParameters)->baro;
     lorapacket.temp = ((DataPacket *)pvParameters)->temp;
+    lorapacket.logging = ((DataPacket *)pvParameters)->logging;
 
     // Transmit packet
     lora_send_packet((uint8_t *)&lorapacket, sizeof(LoraPacket));

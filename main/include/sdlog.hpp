@@ -7,6 +7,7 @@
 typedef struct data_packet_t{
   int64_t timestamp;
   uint8_t packetid;
+  uint8_t logging;
   int baro;
   float temp;
 } DataPacket;

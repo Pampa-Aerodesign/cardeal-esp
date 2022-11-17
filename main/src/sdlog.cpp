@@ -136,13 +136,14 @@ void taskSD(void *datapacket){
   gpio_pullup_en(PIN_SDLOG);
 
   // File name
-  int attempt = 1;
+  int attempt = 0;
   std::string strattempt;
   char fname[32] = "\0";
   FILE* file = NULL;
 
   bool logging = false; // flag to check if it file was already created
   ((DataPacket*) datapacket)->packetid = 0; // start packetid at zero
+  ((DataPacket *)datapacket)->logging = 0; // update logging status
 
   ESP_LOGI(SDTAG, "Starting the loop");
 
@@ -156,13 +157,13 @@ void taskSD(void *datapacket){
       if(!logging){
         do{
           fclose(file);
+          attempt++;
           strcpy(fname, MOUNT_POINT "/" FILENAME);
           strattempt = std::to_string(attempt);
           strcat(fname, strattempt.c_str());
           strcat(fname, "." FILETYPE);
           file = fopen(fname, "r");
-          attempt++;
-        } while(file != NULL);
+        } while(file != NULL && attempt < 255);
 
         ESP_LOGI(SDTAG, "Attempting to create file %s", fname);
 
@@ -183,7 +184,8 @@ void taskSD(void *datapacket){
         }
 
         logging = true;
-        ((DataPacket *)datapacket)->packetid = 0; // start packetid at zero
+        ((DataPacket *)datapacket)->packetid = 0;   // start packetid at zero
+        ((DataPacket *)datapacket)->logging = attempt; // update logging status
         ESP_LOGI(SDTAG, "Created file %s, starting log", fname);
       }
       
@@ -195,8 +197,10 @@ void taskSD(void *datapacket){
       if(file != NULL){
         fclose(file);
         file = NULL;
-        ((DataPacket*) datapacket)->packetid = 0; // reset packetid to zero
+
         logging = false;
+        ((DataPacket*) datapacket)->packetid = 0; // reset packetid to zero
+        ((DataPacket *)datapacket)->logging = 0; // update logging status
         ESP_LOGI(SDTAG, "Logging stopped.");
       }
 
