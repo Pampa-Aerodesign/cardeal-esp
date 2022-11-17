@@ -60,11 +60,11 @@ extern "C" void app_main(void) {
 
   // BAT_ESP (adc range: 150-2450mV)
   static const struct params_taskVoltage_t BatteryDAQ = {
-    ADC1_CHANNEL_5, ADC_ATTEN_DB_11, 0, 0};
+    ADC1_CHANNEL_6, ADC_ATTEN_DB_11, 0, 0};
 
   // STEPUP (adc range: 470-7660mV)
   static const struct params_taskVoltage_t StepUpDAQ = {
-    ADC1_CHANNEL_6, ADC_ATTEN_DB_11, 1, 0.47};
+    ADC1_CHANNEL_7, ADC_ATTEN_DB_11, 1, 0.47};
 
   // start i2cdev library, dependency for esp-idf-lib libraries
   ESP_ERROR_CHECK(i2cdev_init());
@@ -86,14 +86,14 @@ extern "C" void app_main(void) {
   //            (void *)INA219_ADDR_VS_VS, 2, NULL);  // A1 bridged A0 bridged
 
   // Voltage measuring tasks (disabled due to sharing pins with LoRa)
-  // xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
-  // xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
-  // xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
-  // xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
+  xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
+              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
+  xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
+              configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
+  xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
+              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
+  xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
+              configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
 
   // BMP280 task (baro, temp)
   xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,
