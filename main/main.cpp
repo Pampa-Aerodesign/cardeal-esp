@@ -50,6 +50,31 @@ extern "C" void app_main(void) {
   ESP_LOGI("MAIN", "Starting CardealESP");
   
   // Task parameters ----------------------------------------------------------
+  // start i2cdev library, dependency for esp-idf-lib libraries
+  ESP_ERROR_CHECK(i2cdev_init());
+
+  // Packet to be logged into SD card
+  DataPacket datapacket;
+  datapacket.packetid = 0;
+
+  // INA219
+  // INA_BATTERY
+  static const struct params_taskINA_t INA_BAT = {
+    INA219_ADDR_VS_VS, &datapacket};
+
+  //INA_ELEVATOR
+  static const struct params_taskINA_t INA_ELEV = {
+    INA219_ADDR_GND_GND, &datapacket};
+
+  //INA_AILERON
+  static const struct params_taskINA_t INA_AIL = {
+    INA219_ADDR_GND_VS, &datapacket};
+
+  //INA_RUDDER
+  static const struct params_taskINA_t INA_RUD = {
+    INA219_ADDR_VS_GND, &datapacket};
+
+  // Voltage ADC
   // BAT_ELEC (adc range: 470-7660mV)
   static const struct params_taskVoltage_t BatteryElec = {
     ADC1_CHANNEL_0, ADC_ATTEN_DB_11, 1, 0.47};
@@ -66,34 +91,27 @@ extern "C" void app_main(void) {
   static const struct params_taskVoltage_t StepUpDAQ = {
     ADC1_CHANNEL_7, ADC_ATTEN_DB_11, 1, 0.47};
 
-  // start i2cdev library, dependency for esp-idf-lib libraries
-  ESP_ERROR_CHECK(i2cdev_init());
-
-  // Packet to be logged into SD card
-  DataPacket datapacket;
-  datapacket.packetid = 0;
 
   // Tasks --------------------------------------------------------------------
-
   // INA219 current measuring tasks
-  // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
-  //            (void *)INA219_ADDR_GND_GND, 2, NULL);  // A1 open A0 open
-  // xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
-  //            (void *)INA219_ADDR_GND_VS, 2, NULL);  // A1 open A0 bridged
-  // xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
-  //            (void *)INA219_ADDR_VS_GND, 2, NULL);  // A1 bridged A0 open
-  // xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
-  //            (void *)INA219_ADDR_VS_VS, 2, NULL);  // A1 bridged A0 bridged
+  xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
+             (void *)&INA_BAT, 2, NULL);  // A1 bridged A0 bridged
+  xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
+             (void *)&INA_ELEV, 2, NULL);  // A1 open A0 open
+  xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
+             (void *)&INA_AIL, 2, NULL);  // A1 open A0 bridged
+  xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
+             (void *)&INA_RUD, 2, NULL);  // A1 bridged A0 open
 
   // Voltage measuring tasks (disabled due to sharing pins with LoRa)
-  xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
-              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
-  xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
-              configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
-  xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
-              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
-  xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
-              configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
 
   // BMP280 task (baro, temp)
   xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,
