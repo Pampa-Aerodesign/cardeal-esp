@@ -18,13 +18,17 @@
 #include "include/sdlog.hpp"
 
 // INA219 Current Sensor task
-void taskCurrent(void *params_i2c_address) {
+void taskCurrent(void *params_ina219) {
   ina219_t sensor;  // device struct
   memset(&sensor, 0, sizeof(ina219_t));
 
+  // retrieve data from parameter
+  int i2c_address = ((struct params_taskINA_t *)params_ina219)->INA219_ADDR;
+  DataPacket* datapacket = ((struct params_taskINA_t *)params_ina219)->data;
+
   ESP_ERROR_CHECK(ina219_init_desc( &sensor,
-                 (int)params_i2c_address,
-                 I2C_PORT, SDA_GPIO,SCL_GPIO));  // if fails (invalid address), aborts execution
+                 i2c_address, I2C_PORT,
+                 SDA_GPIO, SCL_GPIO));  // if fails (invalid address), aborts execution
   ESP_LOGI(INATAG, "Initializing INA219");
 
   // attempt initialization 5 times
@@ -33,13 +37,13 @@ void taskCurrent(void *params_i2c_address) {
     ESP_LOGE(INATAG,
               "Failed to initialize 0x%x. Is the wiring connected? "
               "(attempt %d/5)",
-              (int)params_i2c_address, attempt);
+              i2c_address, attempt);
     vTaskDelay(pdMS_TO_TICKS(5000));
     attempt++;
   }
   if (attempt > 5) {
     ESP_LOGE(INATAG, "Failed to initialize 0x%x, suspending task",
-             (int)params_i2c_address);
+             i2c_address);
     vTaskSuspend(NULL);
   }
   // if successful, take readings
@@ -55,10 +59,26 @@ void taskCurrent(void *params_i2c_address) {
     ESP_LOGI(INATAG, "Starting the loop");
     while (1) {
       ina219_get_current(&sensor, &current);
-      printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
-             (int)params_i2c_address);
+      // printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
+      //        i2c_address);
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    // write data to DataPacket
+    switch(i2c_address){
+      case INA219_ADDR_VS_VS:
+        datapacket->bat_amp = current * 1000;
+        break;
+      case INA219_ADDR_VS_GND:
+        datapacket->elev_amp = current * 1000;
+        break;
+      case INA219_ADDR_GND_VS:
+        datapacket->ail_amp = current * 1000;
+        break;
+      case INA219_ADDR_GND_GND:
+        datapacket->rud_amp = current * 1000;
+        break;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100));
     }
   }
 }

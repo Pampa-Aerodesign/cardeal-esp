@@ -35,9 +35,13 @@ void taskLoRa_tx(void *pvParameters){
     // Build LoRa Packet
     LoraPacket lorapacket;
     lorapacket.packetid = ((DataPacket *)pvParameters)->packetid;
+    lorapacket.logging = ((DataPacket *)pvParameters)->logging;
     lorapacket.baro = ((DataPacket *)pvParameters)->baro;
     lorapacket.temp = ((DataPacket *)pvParameters)->temp;
-    lorapacket.logging = ((DataPacket *)pvParameters)->logging;
+    lorapacket.bat_amp = ((DataPacket *)pvParameters)->bat_amp;
+    lorapacket.elev_amp = ((DataPacket *)pvParameters)->elev_amp;
+    lorapacket.ail_amp = ((DataPacket *)pvParameters)->ail_amp;
+    lorapacket.rud_amp = ((DataPacket *)pvParameters)->rud_amp;
 
     // Transmit packet
     lora_send_packet((uint8_t *)&lorapacket, sizeof(LoraPacket));

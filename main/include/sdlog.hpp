@@ -10,6 +10,7 @@ typedef struct data_packet_t{
   uint8_t logging;
   int baro;
   float temp;
+  float bat_amp, elev_amp, ail_amp, rud_amp;
 } DataPacket;
 
 void logWriteHeader(FILE* file);
