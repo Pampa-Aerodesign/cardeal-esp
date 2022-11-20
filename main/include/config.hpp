@@ -51,4 +51,14 @@ static const gpio_num_t PIN_SDLOG = GPIO_NUM_16;
 //
 // default: CS=15, RST=32, MISO=13, MOSI=12, SCK=14
 
+/* Event Group Bits */
+#define configUSE_16_BIT_TICKS 1
+#define EG_BMP280_BIT   (1 << 0) // 0000 0001
+#define EG_INA_BAT_BIT  (1 << 1) // 0000 0010
+#define EG_INA_ELEV_BIT (1 << 2) // 0000 0100
+#define EG_INA_AIL_BIT  (1 << 3) // 0000 1000
+#define EG_INA_RUD_BIT  (1 << 4) // 0001 0000
+
+#define EG_ALL_BITS     (0b11111111)
+
 #endif  // CARDEAL_CONFIG_H_

@@ -10,6 +10,7 @@
 // FreeRTOS
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 
 // Temperature Sensor (BMP280)
 #include "bmp280.h"
@@ -30,7 +31,7 @@ void taskBMP280(void *pvParameters) {
   // initializing
   ESP_LOGI(BMPTAG, "Initializing BMP280");
   ESP_ERROR_CHECK(
-      bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, 0, SDA_GPIO, SCL_GPIO));
+      bmp280_init_desc(&dev, BMP280_I2C_ADDRESS_0, I2C_PORT, SDA_GPIO, SCL_GPIO));
 
   // attempt initialization 5 times
   int attempt = 1;
@@ -61,6 +62,10 @@ void taskBMP280(void *pvParameters) {
       continue;
     }
 
+    // update DataPacket
+    ((DataPacket*) pvParameters)->baro = pressure;
+    ((DataPacket*) pvParameters)->temp = temperature;
+
     // printing readings
     // printf("Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
     // if (bme280p)  // print humidity if available
@@ -68,9 +73,13 @@ void taskBMP280(void *pvParameters) {
     // else
     //   printf("\n");
 
-    // update DataPacket
-    ((DataPacket*) pvParameters)->baro = pressure;
-    ((DataPacket*) pvParameters)->temp = temperature;
+    // set EventGroup bit
+    xEventGroupSetBits(*(((DataPacket*)pvParameters)->eventWrite), EG_BMP280_BIT);
+    // what the actual f*
+    // cast pvParameters back into DataPacket pointer
+    // dereference with -> to get eventWrite, which is an address to eventHandle
+    // dereference that to get the eventHandle
+    // probably works by just passing the handle itself? maybe, i dont know, im tired
 
     vTaskDelay(pdMS_TO_TICKS(100));
   }

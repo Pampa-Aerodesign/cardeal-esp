@@ -21,6 +21,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
 
 // SD Card (CATALEX MicroSD module)
 #include <sys/unistd.h>
@@ -46,6 +47,8 @@
 #include "lora.h"
 #include "include/telemetry.hpp"
 
+#define MAINTAG "MAIN"
+
 extern "C" void app_main(void) {
   ESP_LOGI("MAIN", "Starting CardealESP");
   
@@ -53,9 +56,16 @@ extern "C" void app_main(void) {
   // start i2cdev library, dependency for esp-idf-lib libraries
   ESP_ERROR_CHECK(i2cdev_init());
 
-  // Packet to be logged into SD card
+  // create DataPacket to be passed between tasks
+  EventGroupHandle_t eventHandle = xEventGroupCreate();
   DataPacket datapacket;
-  datapacket.packetid = 0;
+  datapacket.packetid = 0;  // set PacketID to zero
+  datapacket.eventWrite = &eventHandle;  // create EventGroup handle
+
+  if(datapacket.eventWrite == NULL)
+    ESP_LOGE(MAINTAG, "FAILED TO CREATE EVENT GROUP");
+  else
+    ESP_LOGI(MAINTAG, "EVENTGROUP CREATED SUCCESSFULLY");
 
   // INA219
   // INA_BATTERY
@@ -94,24 +104,24 @@ extern "C" void app_main(void) {
 
   // Tasks --------------------------------------------------------------------
   // INA219 current measuring tasks
-  xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_BAT, 2, NULL);  // A1 bridged A0 bridged
-  xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_ELEV, 2, NULL);  // A1 open A0 open
-  xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_AIL, 2, NULL);  // A1 open A0 bridged
-  xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_RUD, 2, NULL);  // A1 bridged A0 open
+  // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_BAT, 2, NULL);  // A1 bridged A0 bridged
+  // xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_ELEV, 2, NULL);  // A1 open A0 open
+  // xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_AIL, 2, NULL);  // A1 open A0 bridged
+  // xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_RUD, 2, NULL);  // A1 bridged A0 open
 
   // Voltage measuring tasks (disabled due to sharing pins with LoRa)
-  xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
-              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
-  xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
-              configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
-  xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
-              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
-  xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
-              configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
 
   // BMP280 task (baro, temp)
   xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,

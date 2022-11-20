@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 
 // SD Card
 #include <sys/unistd.h>
@@ -159,18 +160,18 @@ void taskSD(void *datapacket){
 
   bool logging = false; // flag to check if it file was already created
   ((DataPacket *) datapacket)->packetid = 0; // start packetid at zero
-  ((DataPacket *)datapacket)->logging = 0; // update logging status
+  ((DataPacket *) datapacket)->logging = 0;  // update logging status
 
   ESP_LOGI(SDTAG, "Starting the loop");
 
   while(1){
     // start logging once the signal has been received from the RX
-    if(!gpio_get_level(PIN_SDLOG)){
+    if(!gpio_get_level(PIN_SDLOG)){ // Start logging (GPIO16 == LOW)
       // try to open file in read mode. if it opens, the file already exists,
       // increment number in filename and try to open again.
       // when it fails, that means the file does not exist, so open it
       // in write mode to create the file and start logging
-      if(!logging){ // GPIO16 is pulled down, LOW = on
+      if(!logging){ 
         do{
           fclose(file);
           attempt++;
@@ -204,6 +205,16 @@ void taskSD(void *datapacket){
         ((DataPacket *)datapacket)->logging = attempt; // update logging status
         ESP_LOGI(SDTAG, "Created file %s, starting log", fname);
       }
+
+      EventBits_t uxBits;
+      // wait for EventGroup bits
+      uxBits = xEventGroupWaitBits(*(((DataPacket*)datapacket)->eventWrite), EG_BMP280_BIT,
+                          pdTRUE, pdTRUE, pdMS_TO_TICKS(100));
+      // confusing messy casting and dereferencing bs
+      // cast pvParameters back into DataPacket pointer
+      // dereference with -> to get eventWrite, which is an address to eventHandle
+      // dereference that to get the eventHandle
+      // probably works by just passing the handle itself? maybe, i dont know, im tired
       
       // write packet to SD card
       logWrite(file, (DataPacket *)datapacket);
@@ -225,7 +236,8 @@ void taskSD(void *datapacket){
     }
 
     ((DataPacket *) datapacket)->packetid++; // increment packetid
-    vTaskDelay(pdMS_TO_TICKS(100)); // Refresh rate for logging (100 ms)
+    // vTaskDelay(pdMS_TO_TICKS(100)); // Refresh rate for logging (100 ms)
+    // already done in EventGroup wait bits
   }
 
   // shouldn't ever reach this point, not sure if that's bad or not
