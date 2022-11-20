@@ -64,7 +64,7 @@ extern "C" void app_main(void) {
 
   //INA_ELEVATOR
   static const struct params_taskINA_t INA_ELEV = {
-    INA219_ADDR_GND_GND, &datapacket};
+    INA219_ADDR_VS_GND, &datapacket};
 
   //INA_AILERON
   static const struct params_taskINA_t INA_AIL = {
@@ -72,7 +72,7 @@ extern "C" void app_main(void) {
 
   //INA_RUDDER
   static const struct params_taskINA_t INA_RUD = {
-    INA219_ADDR_VS_GND, &datapacket};
+    INA219_ADDR_GND_GND, &datapacket};
 
   // Voltage ADC
   // BAT_ELEC (adc range: 470-7660mV)
@@ -104,14 +104,14 @@ extern "C" void app_main(void) {
              (void *)&INA_RUD, 2, NULL);  // A1 bridged A0 open
 
   // Voltage measuring tasks (disabled due to sharing pins with LoRa)
-  // xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
-  // xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
-  // xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
-  // xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
-  //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
+  xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
+              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
+  xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
+              configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
+  xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
+              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
+  xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
+              configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
 
   // BMP280 task (baro, temp)
   xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,

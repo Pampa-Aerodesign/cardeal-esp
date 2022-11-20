@@ -8,7 +8,7 @@ typedef struct lora_packet{
   uint8_t logging;
   int baro;
   float temp;
-  float bat_amp;
+  float bat_amp, elev_amp, ail_amp, rud_amp;
 } LoraPacket;
 
 void taskLoRa_tx(void *pvParameters);

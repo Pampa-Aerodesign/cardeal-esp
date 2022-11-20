@@ -59,11 +59,24 @@ void taskCurrent(void *params_ina219) {
     ESP_LOGI(INATAG, "Starting the loop");
     while (1) {
       ina219_get_current(&sensor, &current);
-      printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
-             i2c_address);
+      // printf("Current: %.04f mA, address: 0x%x\n", current * 1000,
+      //        i2c_address);
 
     // write data to DataPacket
-    datapacket->bat_amp = current * 1000;
+    switch(i2c_address){
+      case INA219_ADDR_VS_VS:
+        datapacket->bat_amp = current * 1000;
+        break;
+      case INA219_ADDR_VS_GND:
+        datapacket->elev_amp = current * 1000;
+        break;
+      case INA219_ADDR_GND_VS:
+        datapacket->ail_amp = current * 1000;
+        break;
+      case INA219_ADDR_GND_GND:
+        datapacket->rud_amp = current * 1000;
+        break;
+    }
 
     vTaskDelay(pdMS_TO_TICKS(100));
     }

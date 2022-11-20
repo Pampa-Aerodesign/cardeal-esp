@@ -23,7 +23,15 @@
 
 // Write CSV file header
 void logWriteHeader(FILE* file){
-  fprintf(file, "PacketID,Timestamp,Baro,Temp\n");
+  fprintf(file, "PacketID,"
+                "Timestamp,"
+                "Baro,"
+                "Temp,"
+                "Bat_Amp,"
+                "Elev_Amp,"
+                "Ail_Amp,"
+                "Rud_Amp,"
+                "\n");
 }
 
 // Write data into CSV file
@@ -31,14 +39,18 @@ void logWrite(FILE* file, DataPacket* datapacket){
   // get timestamp in miliseconds
   ((DataPacket *)datapacket)->timestamp = esp_timer_get_time()/1000;
 
-  // Retrieve data from DataPacket
-  fprintf(file, "%d,", datapacket->packetid);
-  fprintf(file, "%lld,", datapacket->timestamp);
-  fprintf(file, "%d,", datapacket->baro);
-  fprintf(file, "%lf", datapacket->temp);
+  // Retrieve data from DataPacket and build a buffer string
+  std::string packetstr;
+  packetstr += std::to_string(datapacket->timestamp) + ",";
+  packetstr += std::to_string(datapacket->baro) + ",";
+  packetstr += std::to_string(datapacket->temp) + ",";
+  packetstr += std::to_string(datapacket->bat_amp) + ",";
+  packetstr += std::to_string(datapacket->elev_amp) + ",";
+  packetstr += std::to_string(datapacket->ail_amp) + ",";
+  packetstr += std::to_string(datapacket->rud_amp) + "\n";
 
-  // Print CRLF
-  fprintf(file, "\n");
+  // Write buffer string to file
+  fprintf(file, "%s", packetstr.c_str());
 }
 
 // Initialize SPI and mount SD card
@@ -154,7 +166,7 @@ void taskSD(void *datapacket){
       // increment number in filename and try to open again.
       // when it fails, that means the file does not exist, so open it
       // in write mode to create the file and start logging
-      if(!logging){
+      if(!logging){ // GPIO16 is pulled down, LOW = on
         do{
           fclose(file);
           attempt++;
