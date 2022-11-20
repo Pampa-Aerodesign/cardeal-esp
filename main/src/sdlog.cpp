@@ -30,7 +30,7 @@ void logWriteHeader(FILE* file){
                 "Bat_Amp,"
                 "Elev_Amp,"
                 "Ail_Amp,"
-                "Rud_Amp,"
+                "Rud_Amp"
                 "\n");
 }
 
@@ -41,6 +41,7 @@ void logWrite(FILE* file, DataPacket* datapacket){
 
   // Retrieve data from DataPacket and build a buffer string
   std::string packetstr;
+  packetstr += std::to_string(datapacket->packetid) + ",";
   packetstr += std::to_string(datapacket->timestamp) + ",";
   packetstr += std::to_string(datapacket->baro) + ",";
   packetstr += std::to_string(datapacket->temp) + ",";
