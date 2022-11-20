@@ -21,7 +21,7 @@
 #include "driver/sdmmc_host.h"
 #include "include/sdlog.hpp"
 
-// Write CSV file header
+// Write CSV file header (first row)
 void logWriteHeader(FILE* file){
   fprintf(file, "PacketID,"
                 "Timestamp,"
@@ -39,7 +39,9 @@ void logWrite(FILE* file, DataPacket* datapacket){
   // get timestamp in miliseconds
   ((DataPacket *)datapacket)->timestamp = esp_timer_get_time()/1000;
 
-  // Retrieve data from DataPacket and build a buffer string
+  // Retrieve data from DataPacket and build a buffer string (C++ standard)
+  // Convert every value of DataPacket to string and concatenate
+  // separator (comma) at the end of each value
   std::string packetstr;
   packetstr += std::to_string(datapacket->packetid) + ",";
   packetstr += std::to_string(datapacket->timestamp) + ",";
@@ -49,8 +51,9 @@ void logWrite(FILE* file, DataPacket* datapacket){
   packetstr += std::to_string(datapacket->elev_amp) + ",";
   packetstr += std::to_string(datapacket->ail_amp) + ",";
   packetstr += std::to_string(datapacket->rud_amp) + "\n";
+  // Last value gets CRLF ('\n') to break into the next line
 
-  // Write buffer string to file
+  // Write buffer string to file (converted to C string using c_str())
   fprintf(file, "%s", packetstr.c_str());
 }
 
