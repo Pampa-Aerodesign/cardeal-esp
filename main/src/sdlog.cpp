@@ -232,7 +232,7 @@ void taskSD(void *datapacket){
         file = NULL;
 
         logging = false;
-        ((DataPacket *) datapacket)->packetid = 0; // reset packetid to zero
+        ((DataPacket *)datapacket)->packetid = 0; // reset packetid to zero
         ((DataPacket *)datapacket)->logging = 0; // update logging status
         ESP_LOGI(SDTAG, "Logging stopped.");
       }
@@ -241,7 +241,7 @@ void taskSD(void *datapacket){
       vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    ((DataPacket *) datapacket)->packetid++; // increment packetid
+    ((DataPacket *)datapacket)->packetid++; // increment packetid
     // vTaskDelay(pdMS_TO_TICKS(100)); // Refresh rate for logging (100 ms)
     // already done in EventGroup wait bits
   }

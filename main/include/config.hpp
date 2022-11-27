@@ -7,7 +7,6 @@
 #include "ina219.h"
 
 /* Settings */
-
 // Logging
 #define FILENAME "log"
 #define FILETYPE "csv"
@@ -28,7 +27,6 @@
 #define LORA_SYNC_WORD 0x12 // int
 
 /* Pinouts */
-
 // I2C port 0
 static constexpr gpio_num_t SDA_GPIO = GPIO_NUM_21;
 static constexpr gpio_num_t SCL_GPIO = GPIO_NUM_22;
@@ -44,8 +42,8 @@ static const gpio_num_t PIN_SDLOG = GPIO_NUM_16;
 
 
 // ADC1 (for voltage measurement)
-#define DEFAULT_VREF \
-    1100  // nominal value, can be measured with adc_vref_to_gpio()
+#define DEFAULT_VREF 1100
+// nominal value, can be measured with adc_vref_to_gpio()
 
 // LoRa pins (configurable via 'idf.py menuconfig')
 //
