@@ -53,12 +53,12 @@ static const gpio_num_t PIN_SDLOG = GPIO_NUM_16;
 
 /* Event Group Bits */
 #define configUSE_16_BIT_TICKS 1
-#define EG_BMP280_BIT   (1 << 0) // 0000 0001
-#define EG_INA_BAT_BIT  (1 << 1) // 0000 0010
-#define EG_INA_ELEV_BIT (1 << 2) // 0000 0100
-#define EG_INA_AIL_BIT  (1 << 3) // 0000 1000
-#define EG_INA_RUD_BIT  (1 << 4) // 0001 0000
+#define EG_BMP280_BIT   (1 << 0) // 0000 0001 - BMP280
+#define EG_INA_BAT_BIT  (1 << 1) // 0000 0010 - INA_BAT
+#define EG_INA_ELEV_BIT (1 << 2) // 0000 0100 - INA_ELEV
+#define EG_INA_AIL_BIT  (1 << 3) // 0000 1000 - INA_AIL
+#define EG_INA_RUD_BIT  (1 << 4) // 0001 0000 - INA_RUD
 
-#define EG_ALL_BITS     (0b11111111)
+#define EG_ALL_BITS     (0b11111111) // All bits mask
 
 #endif  // CARDEAL_CONFIG_H_

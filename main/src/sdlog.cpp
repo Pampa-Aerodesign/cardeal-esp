@@ -31,7 +31,8 @@ void logWriteHeader(FILE* file){
                 "Bat_Amp,"
                 "Elev_Amp,"
                 "Ail_Amp,"
-                "Rud_Amp"
+                "Rud_Amp,"
+                "Databits"
                 "\n");
 }
 
@@ -40,7 +41,7 @@ void logWrite(FILE* file, DataPacket* datapacket){
   // get timestamp in miliseconds
   ((DataPacket *)datapacket)->timestamp = esp_timer_get_time()/1000;
 
-  // Retrieve data from DataPacket and build a buffer string (C++ standard)
+  // Retrieve data from DataPacket and build a buffer string (C++ std string)
   // Convert every value of DataPacket to string and concatenate
   // separator (comma) at the end of each value
   std::string packetstr;
@@ -51,7 +52,8 @@ void logWrite(FILE* file, DataPacket* datapacket){
   packetstr += std::to_string(datapacket->bat_amp) + ",";
   packetstr += std::to_string(datapacket->elev_amp) + ",";
   packetstr += std::to_string(datapacket->ail_amp) + ",";
-  packetstr += std::to_string(datapacket->rud_amp) + "\n";
+  packetstr += std::to_string(datapacket->rud_amp) + ",";
+  packetstr += std::to_string(datapacket->databits) + "\n";
   // Last value gets CRLF ('\n') to break into the next line
 
   // Write buffer string to file (converted to C string using c_str())
@@ -209,12 +211,16 @@ void taskSD(void *datapacket){
       EventBits_t uxBits;
       // wait for EventGroup bits
       uxBits = xEventGroupWaitBits(*(((DataPacket*)datapacket)->eventWrite), EG_BMP280_BIT,
-                          pdTRUE, pdTRUE, pdMS_TO_TICKS(100));
+                          pdTRUE, pdFALSE, pdMS_TO_TICKS(100));
       // confusing messy casting and dereferencing bs
       // cast pvParameters back into DataPacket pointer
       // dereference with -> to get eventWrite, which is an address to eventHandle
       // dereference that to get the eventHandle
       // probably works by just passing the handle itself? maybe, i dont know, im tired
+
+      // set DataPacket eventgroup bits
+      ((DataPacket *)datapacket)->databits = uxBits;
+      xEventGroupClearBits(*(((DataPacket*)datapacket)->eventWrite), uxBits);
       
       // write packet to SD card
       logWrite(file, (DataPacket *)datapacket);
