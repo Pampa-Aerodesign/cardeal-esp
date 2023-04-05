@@ -38,9 +38,12 @@
 #include "driver/adc.h"
 #include "include/voltage.hpp"
 
-// Temperature Sensor (BMP280)
+// Temperature/Pressure Sensor (BMP280)
 #include "bmp280.h"
 #include "include/bmp280.hpp"
+
+// Pitot tube (MS4525DO)
+#include "include/pitot.hpp"
 
 // LoRa communication (SX1276)
 #include "lora.h"
@@ -93,33 +96,37 @@ extern "C" void app_main(void) {
 
 
   // Tasks --------------------------------------------------------------------
-  // INA219 current measuring tasks
-  xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_BAT, 2, NULL);  // A1 bridged A0 bridged
-  xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_ELEV, 2, NULL);  // A1 open A0 open
-  xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_AIL, 2, NULL);  // A1 open A0 bridged
-  xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
-             (void *)&INA_RUD, 2, NULL);  // A1 bridged A0 open
+  // // INA219 current measuring tasks
+  // xTaskCreate(&taskCurrent, "INA219 battery", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_BAT, 2, NULL);  // A1 bridged A0 bridged
+  // xTaskCreate(&taskCurrent, "INA219 elevator", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_ELEV, 2, NULL);  // A1 open A0 open
+  // xTaskCreate(&taskCurrent, "INA219 aileron", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_AIL, 2, NULL);  // A1 open A0 bridged
+  // xTaskCreate(&taskCurrent, "INA219 rudder", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&INA_RUD, 2, NULL);  // A1 bridged A0 open
 
-  // Voltage measuring tasks (disabled due to sharing pins with LoRa)
-  xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
-              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
-  xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
-              configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
-  xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
-              configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
-  xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
-              configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
+  // // Voltage measuring tasks (disabled due to sharing pins with LoRa)
+  // xTaskCreate(&taskVoltage, "read battery voltage",        // GPIO36 (= VP)
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryElec, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read regulator voltage",      // GPIO39 (= VN)
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BuckBoostElec, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read DAQ battery voltage",    // GPIO33
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&BatteryDAQ, 2, NULL);
+  // xTaskCreate(&taskVoltage, "read DAQ regulator voltage",  // GPIO34
+  //             configMINIMAL_STACK_SIZE * 8, (void *)&StepUpDAQ, 2, NULL);
 
   // BMP280 task (baro, temp)
-  xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,
-             (void *)&datapacket, 2, NULL);
+  // xTaskCreate(&taskBMP280, "BMP280 read", configMINIMAL_STACK_SIZE * 8,
+  //            (void *)&datapacket, 2, NULL);
+
+  // Pitot task (differential pressure)
+  xTaskCreate(&taskPitot, "read pitot tube", 2048, (void *)&datapacket, 4, NULL);
 
   // SD logging task
-  xTaskCreate(&taskSD, "write SD log", 4096, (void *)&datapacket, 3, NULL);
+  // xTaskCreate(&taskSD, "write SD log", 4096, (void *)&datapacket, 3, NULL);
 
   // LoRa telemetry task
-  xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&datapacket, 4, NULL);
+  // xTaskCreate(&taskLoRa_tx, "send LoRa packets", 2048, (void *)&datapacket, 4, NULL);
+
 }

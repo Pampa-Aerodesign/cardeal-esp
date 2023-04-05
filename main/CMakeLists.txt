@@ -6,4 +6,5 @@ idf_component_register(SRCS "main.cpp"
                             "src/sdlog.cpp"
                             "src/bmp280.cpp"
                             "src/ina219.cpp"
+                            "src/pitot.cpp"
                        INCLUDE_DIRS ".")
