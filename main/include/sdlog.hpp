@@ -10,6 +10,9 @@ typedef struct data_packet_t{
   uint8_t logging;
   int baro;
   float temp;
+  float pitot_psi;
+  float pitot_temp;
+  float airspeed_ms;
   float bat_amp, elev_amp, ail_amp, rud_amp;
 } DataPacket;
 

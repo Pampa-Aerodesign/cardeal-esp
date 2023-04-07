@@ -47,6 +47,9 @@ void logWrite(FILE* file, DataPacket* datapacket){
   packetstr += std::to_string(datapacket->timestamp) + ",";
   packetstr += std::to_string(datapacket->baro) + ",";
   packetstr += std::to_string(datapacket->temp) + ",";
+  packetstr += std::to_string(datapacket->pitot_psi) + ",";
+  packetstr += std::to_string(datapacket->pitot_temp) + ",";
+  packetstr += std::to_string(datapacket->airspeed_ms) + ",";
   packetstr += std::to_string(datapacket->bat_amp) + ",";
   packetstr += std::to_string(datapacket->elev_amp) + ",";
   packetstr += std::to_string(datapacket->ail_amp) + ",";

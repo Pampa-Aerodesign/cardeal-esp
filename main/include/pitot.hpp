@@ -9,7 +9,7 @@
 #define PITOTTAG "INA219"
 
 #define I2C_SENSOR_ADDR	0x28
-#define I2C_MASTER_FREQ_HZ 400000
+#define I2C_MASTER_FREQ_HZ 100000
 
 // Output is proportional to the difference between Port 1 and Port 2. Output swings
 // positive when Port 1> Port 2. Output is 50% of supply voltage when Port 1=Port 2.
