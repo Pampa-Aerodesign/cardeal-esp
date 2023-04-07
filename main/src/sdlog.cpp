@@ -27,6 +27,8 @@ void logWriteHeader(FILE* file){
                 "Timestamp,"
                 "Baro,"
                 "Temp,"
+                "Pitot_PSI"
+                "Pitot_Temp"
                 "Bat_Amp,"
                 "Elev_Amp,"
                 "Ail_Amp,"
